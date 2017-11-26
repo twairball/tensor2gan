@@ -25,6 +25,7 @@ dist/
 
 # data download and experiments
 results/
+train/
 pokemon/
 cifar10/
 MNIST_data/

@@ -20,7 +20,7 @@ def read_batch(filepath):
 
     images = np.array(data[b'data'], dtype=np.float32)
     images = np.reshape(images, (10000, 32, 32, 3))
-    labels = np.array(data[b'labels'])
+    labels = np.array(data[b'labels'], dtype=np.float32)
     return images, labels
     
 def read_datasets(train=True):
@@ -38,7 +38,9 @@ def read_datasets(train=True):
         img, lbl = read_batch(f)
         images.append(img)
         labels.append(lbl)
-    
+    return images, labels
+
+def _features(images, labels):
     images = tf.constant(np.concatenate(images))
     labels = np.concatenate(labels) + 1 # class=0 reserved for fake GAN images
     one_hot = tf.one_hot(np.array(labels), num_classes) 
@@ -46,13 +48,13 @@ def read_datasets(train=True):
 
 def generator(batch_size=32, train=True, shuffle=True):
 
-    images, labels = read_datasets(train)
-    dataset = Dataset.from_tensor_slices((images, labels)) 
-    dataset = dataset.batch(batch_size)
+    _images, _labels = read_datasets(train)
 
-    iterator = dataset.make_one_shot_iterator()
-        
     def input_fn():
+        images, labels = _features(_images, _labels)
+        dataset = Dataset.from_tensor_slices((images, labels)) 
+        dataset = dataset.batch(batch_size)
+        iterator = dataset.make_one_shot_iterator()
         return iterator.get_next()
         
     return input_fn
