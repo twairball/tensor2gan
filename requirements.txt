@@ -1,0 +1,5 @@
+matplotlib==2.0.0
+numpy==1.13.3
+requests==2.18.4
+six==1.11.0
+tensorflow==1.4.0
