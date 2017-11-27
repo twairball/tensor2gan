@@ -12,6 +12,7 @@ build/
 dist/
 
 .idea
+.vscode
 
 # jupyter
 *.ipynb
@@ -27,3 +28,4 @@ dist/
 data/
 results/
 train/
+tmp/
