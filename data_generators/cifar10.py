@@ -9,7 +9,7 @@ Dataset = tf.data.Dataset
 num_classes = 11 # 10 classes + 1 for "fake"
 
 DATA_URL = 'http://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz'
-DATA_DIR='./cifar10'
+DATA_DIR='./data/cifar10'
 DATASET_FILE='cifar-10-python.tar.gz'
 
 def read_batch(filepath):

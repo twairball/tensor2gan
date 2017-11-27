@@ -8,7 +8,7 @@ Dataset = tf.data.Dataset
 num_classes = 2
 
 POKEMON_URL='https://s3-us-west-2.amazonaws.com/twairball.datasets.pokemon/pokemon.tgz'
-DATA_DIR='./pokemon'
+DATA_DIR='./data/pokemon'
 DATASET_FILE='pokemon.tgz'
 
 def read_datasets(train=True):

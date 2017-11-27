@@ -24,8 +24,6 @@ dist/
 .DS_Store
 
 # data download and experiments
+data/
 results/
 train/
-pokemon/
-cifar10/
-MNIST_data/
