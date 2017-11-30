@@ -83,21 +83,45 @@ def one_hot(x, num_classes):
 ## 
 ## TFRecord stuff
 ## 
-def write_to_tf_records(record_filepath, images, labels):
+
+def get_feats(image):
+    """Convert image to binary features. 
+    Returns image (uint8) and shape (int32) in binary
+    """
+    shape = np.array(image.shape, dtype=np.int32)
+    img = image.astype(np.uint8)
+    # convert image to raw data bytes in the array.
+    feats = img.tobytes(), shape.tobytes() 
+    return feats
+
+def get_image(file):
+    # read the img from file
+    img_file = tf.read_file(file)
+    img_decoded = tf.image.decode_image(img_file, channels=3)
+    return img_decoded
+
+def write_to_tf_records(record_filepath, images, labels, get_image_fn=None):
+    """Write image data to TFRecord. 
+    Args:
+        record_filepath: string filepath to write .tfrecords file
+        images: Array of image data, or list of filenames
+        labels: Array of labels
+        get_image_fn: If defined, will call this function on each element of 
+            images. 
+
+    Example: 
+        # load image data into array and write to .tfrecords
+        write_to_tf_records(filepath, images, labels)
+
+        # pass list of image filepaths and read image with function
+        write_to_tf_records(filepath, image_files, labels, get_image)
+    """
     # open the TFRecords file
     writer = tf.python_io.TFRecordWriter(record_filepath)
-        
-    def get_feats(image):
-        """Convert image to binary features. 
-        Returns image (uint8) and shape (int32) in binary
-        """
-        shape = np.array(image.shape, dtype=np.int32)
-        img = image.astype(np.uint8)
-        # convert image to raw data bytes in the array.
-        feats = img.tobytes(), shape.tobytes() 
-        return feats
     
     for image, label in zip(images, labels):
+        if get_image_fn:
+            image = get_image_fn(image)
         binary_image, shape = get_feats(image)
         
         example = tf.train.Example(features=tf.train.Features(feature={
