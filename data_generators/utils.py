@@ -3,6 +3,7 @@ Adaptation of tensor2tensor/data_generators/generator_utils.py
 
 """
 import tensorflow as tf
+import numpy as np
 import os
 import tarfile
 import re
@@ -16,6 +17,9 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import six.moves.urllib_request as urllib  # Imports urllib on Python2, urllib.request on Python3
 
 
+## 
+## Data Prepare
+## 
 def do_files_exist(filepaths):
     return not(False in [tf.gfile.Exists(f) for f in filepaths])
 
@@ -71,3 +75,62 @@ def prepare_dataset(data_dir, filename, remote_url):
     read_type = "r:gz" if filename.endswith("gz") else "r"
     with tarfile.open(filepath, read_type) as corpus_tar:
         corpus_tar.extractall(data_dir)
+
+
+def one_hot(x, num_classes):
+    return np.eye(num_classes)[x]
+
+## 
+## TFRecord stuff
+## 
+def write_to_tf_records(record_filepath, images, labels):
+    # open the TFRecords file
+    writer = tf.python_io.TFRecordWriter(record_filepath)
+        
+    def get_feats(image):
+        """Convert image to binary features. 
+        Returns image (uint8) and shape (int32) in binary
+        """
+        shape = np.array(image.shape, dtype=np.int32)
+        img = image.astype(np.uint8)
+        # convert image to raw data bytes in the array.
+        feats = img.tobytes(), shape.tobytes() 
+        return feats
+    
+    for image, label in zip(images, labels):
+        binary_image, shape = get_feats(image)
+        
+        example = tf.train.Example(features=tf.train.Features(feature={
+                'label': _int64_feature(label),
+                'shape': _bytes_feature(shape),
+                'image': _bytes_feature(binary_image)
+                }))
+        
+        # Serialize to string and write on the file
+        writer.write(example.SerializeToString())
+
+    writer.close()
+
+def _int64_feature(value):
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+def _bytes_feature(value):
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+def parse_record(example):
+    # label and image are stored as bytes but could be stored as 
+    # int64 or float64 values in a serialized tf.Example protobuf.
+    tfrecord_features = tf.parse_single_example(example,
+                        features={
+                            'label': tf.FixedLenFeature([], tf.int64),
+                            'shape': tf.FixedLenFeature([], tf.string),
+                            'image': tf.FixedLenFeature([], tf.string),
+                        }, name='features')
+    # image was saved as uint8, so we have to decode as uint8.
+    image = tf.decode_raw(tfrecord_features['image'], tf.uint8)
+    label = tfrecord_features['label']
+
+    # shape is dynamic tensor -- can't reshape from this. 
+#     shape = tf.decode_raw(tfrecord_features['shape'], tf.int32)
+#     shape = tf.reshape(shape, [3])
+    return image, label

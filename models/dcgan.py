@@ -57,30 +57,29 @@ class DCGAN():
                 return g
             
             # model
-            g = linear_projection(z, filters)
-            g = deconv_block(g, f1)
-            g = deconv_block(g, f2)
-            g = deconv_block(g, f3)
-            g = deconv_block(g, f4)
-            g = tf.tanh(g) # activation for images
-            print("[generator] output: ", g)
+            with tf.variable_scope("generator", reuse=tf.AUTO_REUSE):
+                g = linear_projection(z, filters)
+                g = deconv_block(g, f1)
+                g = deconv_block(g, f2)
+                g = deconv_block(g, f3)
+                g = deconv_block(g, f4)
+                g = tf.tanh(g) # activation for images
+                tf.logging.info("[generator] output: %s" % g)
             return g
 
         return fn
 
-    def discriminator(self, filters=64, training=True):
+    def discriminator(self, filters=64, batch_size=32, training=True):
         
         def fn(inputs, conditioning):
-            print("[discriminator] args: ", locals())
+            tf.logging.info("[disc] args: %s" % locals())
             
             # filters: 64, 128, 256, 512
             f0, f1, f2, f3 = filters, filters*2, filters*4, filters*8
-            print("[discriminator] filters: ", [f0, f1, f2, f3])
-        #     batch_size = inputs.get_shape()[0].value
-        #     batch_size = tf.shape(inputs[0])[0]
-            batch_size=32 # TODO: get batch_size dynamically
-            print("[discriminator] input shape: ", inputs.get_shape())
-            print("[discriminator] batch_size: ", batch_size)
+            tf.logging.info("[disc] filters: %s" % [f0, f1, f2, f3])
+
+            tf.logging.info("[discriminator] input shape: %s" % inputs.get_shape())
+            tf.logging.info("[discriminator] batch_size: %s" % batch_size)
             
             def leaky_relu(x, leak=0.2, name='lrelu'):
                 return tf.maximum(x, x * leak, name=name)
@@ -98,20 +97,20 @@ class DCGAN():
                 return d
             
             def classify_block(x, filters=1024):
-                print("[d] classify block: x: ", x)
-        #         d = tf.reshape(x, [batch_size, -1])
-        #         print("[d] classify block: d: ", d)
                 d = dense_block(x, filters)
                 d = dense_block(d, 1)
                 d = tf.nn.sigmoid(d) # classify as real or fake
                 return d
 
-            # model    
-            d = conv_block(inputs, f0)
-            d = conv_block(d, f1)
-            d = conv_block(d, f2)
-            d = conv_block(d, f3)
-            d = classify_block(d, 1024)
+            # model
+            with tf.variable_scope("discriminator", reuse=tf.AUTO_REUSE):
+                d = conv_block(inputs, f0)
+                d = conv_block(d, f1)
+                d = conv_block(d, f2)
+                d = conv_block(d, f3)
+                tf.logging.info("[disc] classify block, x: %s" % d)
+                d = classify_block(d, 1024)
+
             return d
         
         return fn
