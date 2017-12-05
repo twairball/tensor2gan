@@ -8,21 +8,28 @@ Collection of GAN experiments, using TF Estimator and TF GAN.
 
 ### Usage
 
-`./dcgan_cifar10.py`
+````
+./gan_trainer \
+    --model_dir=./train \           # save model checkpoints
+    --data_dir=./data \             # save dataset
+    --batch_size=32 \               
+    --z_dim=100 \                   # GAN input noise z dims
+    --max_steps=30000 \
+    --generator=GenerateCIFAR10 \   # Data Generator
+    --spectral_norm=1               # spectral norm flag
+````
 
 ## Data Generators
 
-Data generators have a `generator()` that returns an input function for passing to estimator API. 
+`DataGenerator` define input pipelines used to feed to GAN networks. 
 
-- `cifar10.py`
-- `mnist.py`
-- `pokemon.py` 
-    + Custom collection of pokemon images normalized to 80x80
+It provides a `get_input_fn` that returns a callable function, consumed by `Estimators`. 
+
+It also maintains some useful properties, e.g. `num_classes` and `input_shape`
 
 ## GAN
 
-GAN classes wrap an Estimator which we can then pass `input_fn` and train.  
-
+GAN classes wrap an Estimator which we can then pass `input_fn` and train. See `tf.contrib.gan.gan_estimator` for more info. 
 
 # LICENSE
 
