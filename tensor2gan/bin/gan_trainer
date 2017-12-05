@@ -1,0 +1,52 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import tensorflow as tf
+import numpy as np
+import os
+
+from tensor2gan.data_generators.cifar10 import GenerateCIFAR10
+from tensor2gan.data_generators.pokemon import GeneratePokemon
+
+from tensor2gan.models.dcgan import DCGAN
+from tensor2gan.models.sn_dcgan import SN_DCGAN
+
+flags = tf.flags
+FLAGS = flags.FLAGS
+
+flags.DEFINE_string("model_dir", 
+    default_value='./train', 
+    docstring="train results directory")
+flags.DEFINE_string("data_dir", "./data", "train data directory")
+
+flags.DEFINE_integer("batch_size", 32, "batch size")
+flags.DEFINE_integer("z_dim", 100, "noise z dimension")
+flags.DEFINE_float("max_steps", 30000, "max number of training steps")
+flags.DEFINE_string("generator", "GenerateCIFAR10", "Specify data_generator class. [GenerateCIFAR10|GeneratePokemon]")
+flags.DEFINE_boolean("spectral_norm", False, "Spectral Normalization for Discriminator weights")
+
+def get_data_generator():
+    class_name = FLAGS.generator
+    _class = globals()[class_name]
+    return _class()
+    
+def main(_):
+    
+    # data generator
+    data_gen = get_data_generator()
+    input_fn = data_gen.get_input_fn(batch_size=FLAGS.batch_size, data_dir=FLAGS.data_dir, train=True)
+
+    # input pipeline with noise
+    def train_input_fn():
+        noise = tf.random_normal([FLAGS.batch_size, FLAGS.z_dim])
+        images, labels = input_fn()
+        return noise, images
+
+    create_gan = SN_DCGAN if FLAGS.spectral_norm else DCGAN
+    gan = create_gan(model_dir=FLAGS.model_dir, image_shape=data_gen.input_shape)
+
+    # train
+    gan.gan_estimator.train(train_input_fn, steps=FLAGS.max_steps)
+
+if __name__ == '__main__':
+    tf.app.run()

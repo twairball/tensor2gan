@@ -10,12 +10,18 @@ class DCGAN():
         dc_gan.train(input_fn)
 
     """
-    def __init__(self, model_dir='./train'):
-        # TODO:
-        generator_optimizer = tf.train.AdamOptimizer(0.1, 0.5)
-        discriminator_optimizer = tf.train.AdamOptimizer(0.1, 0.5)
+    def __init__(self, 
+        model_dir='./train', image_shape=(32,32,3), g_opt=None, d_opt=None):
+        
+        self.image_shape = image_shape
 
-        generator_fn = self.generator()
+        # generator optimizer
+        self.g_opt = g_opt if g_opt else tf.train.AdamOptimizer(0.1, 0.5)
+
+        # discriminator optimizer
+        self.d_opt = d_opt if d_opt else tf.train.AdamOptimizer(0.1, 0.5)
+
+        generator_fn = self.generator(output_shape=self.image_shape)
         discriminator_fn = self.discriminator()
 
         # Create GAN estimator.
@@ -25,8 +31,8 @@ class DCGAN():
             discriminator_fn=discriminator_fn,
             generator_loss_fn=tfgan.losses.wasserstein_generator_loss,
             discriminator_loss_fn=tfgan.losses.wasserstein_discriminator_loss,
-            generator_optimizer=generator_optimizer,
-            discriminator_optimizer=discriminator_optimizer
+            generator_optimizer=self.g_opt,
+            discriminator_optimizer=self.d_opt
         )
 
     def generator(self, output_shape=(32,32,3), filters=1024, training=True):
