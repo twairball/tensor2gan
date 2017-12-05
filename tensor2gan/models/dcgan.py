@@ -1,39 +1,9 @@
 import tensorflow as tf
-import tensorflow.contrib.gan as tfgan
 
 class DCGAN():
     """
-    Create GAN Estimator
-
-    Useage:
-        dc_gan = DCGAN().gan_estimator
-        dc_gan.train(input_fn)
-
+    DCGAN model
     """
-    def __init__(self, 
-        model_dir='./train', image_shape=(32,32,3), g_opt=None, d_opt=None):
-        
-        self.image_shape = image_shape
-
-        # generator optimizer
-        self.g_opt = g_opt if g_opt else tf.train.AdamOptimizer(0.1, 0.5)
-
-        # discriminator optimizer
-        self.d_opt = d_opt if d_opt else tf.train.AdamOptimizer(0.1, 0.5)
-
-        generator_fn = self.generator(output_shape=self.image_shape)
-        discriminator_fn = self.discriminator()
-
-        # Create GAN estimator.
-        self.gan_estimator = tfgan.estimator.GANEstimator(
-            model_dir,
-            generator_fn=generator_fn,
-            discriminator_fn=discriminator_fn,
-            generator_loss_fn=tfgan.losses.wasserstein_generator_loss,
-            discriminator_loss_fn=tfgan.losses.wasserstein_discriminator_loss,
-            generator_optimizer=self.g_opt,
-            discriminator_optimizer=self.d_opt
-        )
 
     def generator(self, output_shape=(32,32,3), filters=1024, training=True):
         
@@ -121,3 +91,16 @@ class DCGAN():
         
         return fn
 
+
+def dcgan_base():
+    """Base set of hparams"""
+    return tf.contrib.training.HParams(
+        batch_size=32,
+        z_dim=100,
+        gen_filters=1024,
+        gen_learning_rate=0.1,
+        gen_adam_beta1=0.5,
+        dis_filters=64,
+        dis_learning_rate=0.1,
+        dis_adam_beta1=0.5
+    )   
