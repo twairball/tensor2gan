@@ -52,7 +52,7 @@ class GeneratePokemon(DataGenerator):
         if not tf.gfile.Exists(record_filepath):
             tf.logging.info("Writing TFRecord to: %s" % record_filepath)
             images, labels = read_dataset(train, data_dir)
-            utils.write_to_tf_records(record_filepath, images, labels)
+            utils.write_to_tf_records(record_filepath, images, labels, utils.get_image)
         else:
             tf.logging.info("Skipping writing TFRecord, found: %s" % record_filepath)
 

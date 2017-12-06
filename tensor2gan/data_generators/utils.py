@@ -98,6 +98,10 @@ def get_image(file):
     # read the img from file
     img_file = tf.read_file(file)
     img_decoded = tf.image.decode_image(img_file, channels=3)
+    # Normalize [-1,1]
+    img_decoded = tf.div(
+        tf.subtract(tf.to_float(img_decoded), tf.constant(127.5)), 
+        tf.constant(127.5))
     return img_decoded
 
 def write_to_tf_records(record_filepath, images, labels, get_image_fn=None):

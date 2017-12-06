@@ -42,6 +42,7 @@ def read_dataset(train=True, data_dir="./data"):
     labels = []
     for f in files:
         img, lbl = read_batch(f)
+        img = (img - 127.5) / 127.5  # normalize [-1, 1]
         images.append(img)
         labels.append(lbl)
     return np.concatenate(images), np.concatenate(labels).astype(int)
