@@ -12,11 +12,12 @@ Collection of GAN experiments, using TF Estimator and TF GAN.
 ./gan_trainer \
     --model_dir=./train \           # save model checkpoints
     --data_dir=./data \             # save dataset
-    --batch_size=32 \               
-    --z_dim=100 \                   # GAN input noise z dims
-    --max_steps=30000 \
+    --hparams_set=dcgan_base \      # hparams set
+    --hparams='batch_size=32' \     # hparams override
+    --train_steps=30000 \
+    --local_eval_frequency=2000 \
     --generator=GenerateCIFAR10 \   # Data Generator
-    --spectral_norm=1               # spectral norm flag
+    --model=DCGAN                   # [DCGAN | SN_DCGAN]
 ````
 
 ## Data Generators
@@ -29,7 +30,8 @@ It also maintains some useful properties, e.g. `num_classes` and `input_shape`
 
 ## GAN
 
-GAN classes wrap an Estimator which we can then pass `input_fn` and train. See `tf.contrib.gan.gan_estimator` for more info. 
+- DCGAN
+- SN_DCGAN: DCGAN with Spectral Normalization
 
 # LICENSE
 
