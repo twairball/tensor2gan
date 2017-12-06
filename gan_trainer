@@ -29,6 +29,21 @@ flags.DEFINE_integer("local_eval_frequency", 2000,
 flags.DEFINE_string("schedule", "train_and_evaluate",
                     "Method of tf.contrib.learn.Experiment to run.")
 
+# early stopping
+flags.DEFINE_string("eval_early_stopping_metric", "loss",
+                    "If --schedule=train_and_evaluate and "
+                    "--eval_early_stopping_steps is not None, then stop when "
+                    "--eval_early_stopping_metric has not decreased for "
+                    "--eval_early_stopping_steps")
+flags.DEFINE_integer("eval_early_stopping_steps", None,
+                     "If --schedule=train_and_evaluate and "
+                     "--eval_early_stopping_steps is not None, then stop when "
+                     "--eval_early_stopping_metric has not decreased for "
+                     "--eval_early_stopping_steps")
+flags.DEFINE_bool("eval_early_stopping_metric_minimize", True,
+                  "Whether to check for the early stopping metric going down "
+                  "or up.")
+
 # model/dataset
 flags.DEFINE_string("generator", "GenerateCIFAR10", 
     "Specify data_generator class. [GenerateCIFAR10|GeneratePokemon]")
@@ -94,15 +109,30 @@ def create_experiment_fn(run_config, hparams):
         train_input_fn = create_input_fn(data_generator, hparams, train=True)
         eval_input_fn = create_input_fn(data_generator, hparams, train=False)
 
+        train_monitors = []
+        eval_hooks = []
+        if FLAGS.schedule == "train_and_evaluate":
+            if FLAGS.local_eval_frequency:
+                train_monitors.append(
+                    tf.contrib.learn.monitors.ValidationMonitor(
+                        input_fn=eval_input_fn,
+                        eval_steps=FLAGS.eval_steps,
+                        every_n_steps=FLAGS.local_eval_frequency,
+                        hooks=eval_hooks,
+                        early_stopping_rounds=FLAGS.eval_early_stopping_steps,
+                        early_stopping_metric=FLAGS.eval_early_stopping_metric,
+                        early_stopping_metric_minimize=FLAGS.
+                        eval_early_stopping_metric_minimize))
+
         experiment = tf.contrib.learn.Experiment(
             estimator=estimator,
             train_input_fn=train_input_fn,
             eval_input_fn=eval_input_fn,
             train_steps=FLAGS.train_steps,
             eval_steps=FLAGS.eval_steps,
-            train_monitors=[],
-            eval_hooks=[],
             train_steps_per_iteration=FLAGS.local_eval_frequency,
+            train_monitors=train_monitors,
+            eval_hooks=eval_hooks,
             eval_delay_secs=0,)
         return experiment
     
@@ -117,7 +147,13 @@ def create_hparams(hparams_set):
     hparams.parse(FLAGS.hparams)
     return hparams
 
-def main(_):
+def main(_):    
+    tf.logging.set_verbosity(tf.logging.INFO)
+    
+    # create folder if not exist
+    if not tf.gfile.Exists(FLAGS.model_dir):
+        tf.gfile.MkDir(FLAGS.model_dir)
+    
     # experiment components
     run_config = create_run_config(FLAGS.model_dir)
     hparams = create_hparams(FLAGS.hparams_set)
