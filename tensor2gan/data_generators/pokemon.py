@@ -56,12 +56,14 @@ class GeneratePokemon(DataGenerator):
         else:
             tf.logging.info("Skipping writing TFRecord, found: %s" % record_filepath)
 
+        return record_filepath
+    
     def get_input_fn(self, batch_size, data_dir="./data", 
         train=True):
         """Create input pipeline. Returns input_fn, a callable function that 
         returns next element in iterator.
         """
-        self.prepare_data(data_dir, train)
+        record_filepath = self.prepare_data(data_dir, train)
 
         def parse_features(image, label):
             # reshape image
@@ -70,7 +72,7 @@ class GeneratePokemon(DataGenerator):
             return image, label
             
         def input_fn():
-            dataset = tf.data.TFRecordDataset([self.get_record_filename(train)])
+            dataset = tf.data.TFRecordDataset([record_filepath])
             dataset = dataset.map(utils.parse_record)
             dataset = dataset.map(parse_features)
             dataset = dataset.shuffle(batch_size * 5).batch(batch_size).repeat()

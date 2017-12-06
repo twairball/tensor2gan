@@ -62,7 +62,7 @@ class GenerateCIFAR10(DataGenerator):
         return "cifar10_%s.tfrecords" % tag
 
     def prepare_data(self, data_dir, train):
-        """Write dataset to TFRecords"""
+        """Write dataset to TFRecords and returns filepath"""
         record_filepath = os.path.join(data_dir, self.get_record_filename(train))
 
         # write dataset to tfrecords if not exist
@@ -73,11 +73,13 @@ class GenerateCIFAR10(DataGenerator):
         else:
             tf.logging.info("Skipping writing TFRecord, found: %s" % record_filepath)
 
+        return record_filepath
+
     def get_input_fn(self, batch_size, data_dir, train=True):
         """Create input pipeline. Returns input_fn, a callable function that 
         returns next element in iterator.
         """
-        self.prepare_data(data_dir, train)
+        record_filepath = self.prepare_data(data_dir, train)
 
         def parse_features(image, label):
             # reshape image
@@ -86,7 +88,7 @@ class GenerateCIFAR10(DataGenerator):
             return image, label
             
         def input_fn():
-            dataset = tf.data.TFRecordDataset([self.get_record_filename(train)])
+            dataset = tf.data.TFRecordDataset([record_filepath])
             dataset = dataset.map(utils.parse_record)
             dataset = dataset.map(parse_features)
             dataset = dataset.shuffle(batch_size * 5).batch(batch_size).repeat()

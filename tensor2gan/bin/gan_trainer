@@ -48,7 +48,7 @@ def get_data_generator():
 
 def create_input_fn(data_generator, hparams, train=True):
 
-    input_fn = data_generator.get_input_fn(
+    feature_fn = data_generator.get_input_fn(
         batch_size=hparams.batch_size, 
         data_dir=FLAGS.data_dir, 
         train=True)
@@ -56,7 +56,7 @@ def create_input_fn(data_generator, hparams, train=True):
     # input pipeline with noise
     def input_fn():
         noise = tf.random_normal([hparams.batch_size, hparams.z_dim])
-        images, labels = input_fn()
+        images, labels = feature_fn()
         return noise, images
     
     return input_fn
