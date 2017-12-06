@@ -95,12 +95,12 @@ class DCGAN():
 def dcgan_base():
     """Base set of hparams"""
     return tf.contrib.training.HParams(
-        batch_size=32,
+        batch_size=64,
         z_dim=100,
         gen_filters=1024,
-        gen_learning_rate=0.1,
+        gen_learning_rate=0.0001,
         gen_adam_beta1=0.5,
         dis_filters=64,
-        dis_learning_rate=0.1,
+        dis_learning_rate=0.0001,
         dis_adam_beta1=0.5
     )   
