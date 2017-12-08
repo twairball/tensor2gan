@@ -70,7 +70,7 @@ class SN_DCGAN(DCGAN):
             def conv_block(x, filters, kernel_size=[5,5], strides=(2,2)):
                 d = tf.layers.conv2d(x, filters, kernel_size , strides=strides, padding='SAME', 
                     kernel_regularizer=spectral_norm)
-                d = tf.layers.batch_normalization(d, training=training)
+                # d = tf.layers.batch_normalization(d, training=training)
                 d = leaky_relu(d)
                 return d
 
