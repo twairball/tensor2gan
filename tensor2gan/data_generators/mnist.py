@@ -3,6 +3,9 @@ import numpy as np
 from tensorflow.examples.tutorials.mnist import input_data
 Dataset = tf.data.Dataset
 
+"""
+TODO: implement using DataGenerator class
+"""
 def generator(batch_size=32, train=True):
     def input_fn():
         _mnist = input_data.read_data_sets("./data/MNIST_data/", one_hot=True)

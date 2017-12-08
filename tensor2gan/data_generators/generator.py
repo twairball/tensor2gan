@@ -17,5 +17,5 @@ class DataGenerator(object):
     def prepare_data(self, data_dir, train):
         raise NotImplementedError()
 
-    def get_input_fn(batch_size, train):
+    def get_input_fn(self, batch_size, train):
         raise NotImplementedError()

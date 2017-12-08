@@ -12,7 +12,7 @@ class DCGAN():
             
             # output shapes: h/16, h/8, h/4, h/2, h
             h, w, c = output_shape
-            h0, w0 = int(h/16), int(w/16)   # 2, 2
+            h0, w0 = int(h/16), int(w/16)   # 4, 4
             
             # filters: 1024, 512, 256, 128, c
             f0, f1, f2, f3, f4 = filters, int(filters/2), int(filters/4), int(filters/8), c
@@ -26,8 +26,8 @@ class DCGAN():
                 g = tf.nn.relu(g)
                 return g
             
-            def deconv_block(x, filters):
-                g = tf.layers.conv2d_transpose(x, filters, [5,5], strides=(2,2), padding='SAME')
+            def deconv_block(x, filters, kernel_size=[4,4], strides=(2,2)):
+                g = tf.layers.conv2d_transpose(x, filters, kernel_size, strides=strides, padding='SAME')
                 g = tf.layers.batch_normalization(g, training=training)
                 g = tf.nn.relu(g)
                 return g
@@ -35,10 +35,10 @@ class DCGAN():
             # model
             with tf.variable_scope("generator", reuse=tf.AUTO_REUSE):
                 g = linear_projection(z, filters)
-                g = deconv_block(g, f1)
-                g = deconv_block(g, f2)
-                g = deconv_block(g, f3)
-                g = deconv_block(g, f4)
+                g = deconv_block(g, f1) # 1024, 4x4
+                g = deconv_block(g, f2) # 512, 8x8
+                g = deconv_block(g, f3) # 256, 16x16
+                g = deconv_block(g, f4) # 3, 32x32
                 g = tf.tanh(g) # activation for images
                 tf.logging.info("[generator] output: %s" % g)
             return g
@@ -80,7 +80,7 @@ class DCGAN():
                 d = conv_block(d, f3)
                 tf.logging.info("[disc] classify block, x: %s" % d)
                 d = dense_block(d, 1024)
-                d = dense_block(d, 1)
+                d = tf.layers.dense(d, 1)
 
             return d
         
