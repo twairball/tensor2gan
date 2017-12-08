@@ -11,8 +11,10 @@ from tensorflow.contrib.learn.python.learn import learn_runner
 from tensor2gan.data_generators.cifar10 import GenerateCIFAR10
 from tensor2gan.data_generators.pokemon import GeneratePokemon
 
-from tensor2gan.models.dcgan import DCGAN, dcgan_base
+from tensor2gan.models.dcgan import DCGAN
 from tensor2gan.models.sn_dcgan import SN_DCGAN
+from tensor2gan.models import losses
+from tensor2gan.models import hparams as HPARAMS
 
 flags = tf.flags
 FLAGS = flags.FLAGS
@@ -22,7 +24,7 @@ flags.DEFINE_string("model_dir", default_value='./train',
     docstring="train results directory")
 flags.DEFINE_string("data_dir", "./data", "train data directory")
 
-flags.DEFINE_float("train_steps", 30000, "max number of training steps")
+flags.DEFINE_float("train_steps", 300000, "max number of training steps")
 flags.DEFINE_integer("eval_steps", 10, "Number of steps in evaluation.")
 flags.DEFINE_integer("local_eval_frequency", 2000,
                      "Run evaluation every this steps during local training.")
@@ -87,6 +89,9 @@ def create_estimator(data_generator, model_name, run_config, hparams):
     d_opt = tf.train.AdamOptimizer(hparams.dis_learning_rate, hparams.dis_adam_beta1)
     g_opt = tf.train.AdamOptimizer(hparams.gen_learning_rate, hparams.gen_adam_beta1)
 
+    generator_loss_fn = getattr(losses, hparams.gen_loss_fn)
+    discriminator_loss_fn = getattr(losses, hparams.dis_loss_fn)
+
     return tfgan.estimator.GANEstimator(
         model_dir=model_dir,
         generator_fn=generator_fn,
@@ -143,13 +148,13 @@ def create_run_config(model_dir):
     return tf.contrib.learn.RunConfig(model_dir=model_dir)
 
 def create_hparams(hparams_set):
-    hparams = globals()[hparams_set]()
+    hparams = getattr(HPARAMS, hparams_set)()
     hparams.parse(FLAGS.hparams)
     return hparams
 
 def main(_):    
     tf.logging.set_verbosity(tf.logging.INFO)
-    
+
     # create folder if not exist
     if not tf.gfile.Exists(FLAGS.model_dir):
         tf.gfile.MkDir(FLAGS.model_dir)

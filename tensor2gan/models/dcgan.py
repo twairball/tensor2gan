@@ -12,7 +12,7 @@ class DCGAN():
             
             # output shapes: h/16, h/8, h/4, h/2, h
             h, w, c = output_shape
-            h0, w0 = int(h/16), int(w/16) 
+            h0, w0 = int(h/16), int(w/16)   # 2, 2
             
             # filters: 1024, 512, 256, 128, c
             f0, f1, f2, f3, f4 = filters, int(filters/2), int(filters/4), int(filters/8), c
@@ -71,12 +71,6 @@ class DCGAN():
                 d = tf.layers.batch_normalization(d, training=training)
                 d = leaky_relu(d)
                 return d
-            
-            def classify_block(x, filters=1024):
-                d = dense_block(x, filters)
-                d = dense_block(d, 1)
-                d = tf.nn.sigmoid(d) # classify as real or fake
-                return d
 
             # model
             with tf.variable_scope("discriminator", reuse=tf.AUTO_REUSE):
@@ -85,22 +79,9 @@ class DCGAN():
                 d = conv_block(d, f2)
                 d = conv_block(d, f3)
                 tf.logging.info("[disc] classify block, x: %s" % d)
-                d = classify_block(d, 1024)
+                d = dense_block(d, 1024)
+                d = dense_block(d, 1)
 
             return d
         
         return fn
-
-
-def dcgan_base():
-    """Base set of hparams"""
-    return tf.contrib.training.HParams(
-        batch_size=64,
-        z_dim=100,
-        gen_filters=1024,
-        gen_learning_rate=0.0001,
-        gen_adam_beta1=0.5,
-        dis_filters=64,
-        dis_learning_rate=0.0001,
-        dis_adam_beta1=0.5
-    )   
