@@ -5,9 +5,6 @@ import tensorflow as tf
 import numpy as np
 import os
 
-import tensorflow.contrib.gan as tfgan
-from tensorflow.contrib.learn.python.learn import learn_runner
-
 from tensor2gan.data_generators.cifar10 import GenerateCIFAR10
 from tensor2gan.data_generators.pokemon import GeneratePokemon
 
@@ -20,31 +17,14 @@ flags = tf.flags
 FLAGS = flags.FLAGS
 
 # experiment settings
-flags.DEFINE_string("model_dir", default_value='./train', 
+flags.DEFINE_string("model_dir", default_value='./results', 
     docstring="train results directory")
 flags.DEFINE_string("data_dir", "./data", "train data directory")
-
 flags.DEFINE_float("train_steps", 300000, "max number of training steps")
-flags.DEFINE_integer("eval_steps", 10, "Number of steps in evaluation.")
-flags.DEFINE_integer("local_eval_frequency", 2000,
-                     "Run evaluation every this steps during local training.")
-flags.DEFINE_string("schedule", "train_and_evaluate",
-                    "Method of tf.contrib.learn.Experiment to run.")
 
-# early stopping
-flags.DEFINE_string("eval_early_stopping_metric", "loss",
-                    "If --schedule=train_and_evaluate and "
-                    "--eval_early_stopping_steps is not None, then stop when "
-                    "--eval_early_stopping_metric has not decreased for "
-                    "--eval_early_stopping_steps")
-flags.DEFINE_integer("eval_early_stopping_steps", None,
-                     "If --schedule=train_and_evaluate and "
-                     "--eval_early_stopping_steps is not None, then stop when "
-                     "--eval_early_stopping_metric has not decreased for "
-                     "--eval_early_stopping_steps")
-flags.DEFINE_bool("eval_early_stopping_metric_minimize", True,
-                  "Whether to check for the early stopping metric going down "
-                  "or up.")
+# model/save
+flags.DEFINE_integer("save_freq", 5000, "save model every N steps")
+flags.DEFINE_integer("keep_num_ckpts", 5, "keep max N checkpoints")
 
 # model/dataset
 flags.DEFINE_string("generator", "GenerateCIFAR10", 
@@ -63,112 +43,102 @@ def get_data_generator():
     _class = globals()[class_name]
     return _class()
 
-def create_input_fn(data_generator, hparams, train=True):
-
-    feature_fn = data_generator.get_input_fn(
-        batch_size=hparams.batch_size, 
-        data_dir=FLAGS.data_dir, 
-        train=True)
-
-    # input pipeline with noise
-    def input_fn():
-        noise = tf.random_normal([hparams.batch_size, hparams.z_dim])
-        images, labels = feature_fn()
-        return noise, images
-    
-    return input_fn
-
-def create_estimator(data_generator, model_name, run_config, hparams):
-    input_shape = data_generator.input_shape
-    gan = globals()[model_name]()
-
-    generator_fn = gan.generator(output_shape=input_shape)
-    discriminator_fn = gan.discriminator()
-
-    model_dir = run_config.model_dir
-    d_opt = tf.train.AdamOptimizer(hparams.dis_learning_rate, hparams.dis_adam_beta1)
-    g_opt = tf.train.AdamOptimizer(hparams.gen_learning_rate, hparams.gen_adam_beta1)
-
-    generator_loss_fn = getattr(losses, hparams.gen_loss_fn)
-    discriminator_loss_fn = getattr(losses, hparams.dis_loss_fn)
-
-    return tfgan.estimator.GANEstimator(
-        model_dir=model_dir,
-        generator_fn=generator_fn,
-        discriminator_fn=discriminator_fn,
-        generator_loss_fn=tfgan.losses.wasserstein_generator_loss,
-        discriminator_loss_fn=tfgan.losses.wasserstein_discriminator_loss,
-        generator_optimizer=g_opt,
-        discriminator_optimizer=d_opt,
-        config=run_config
-    )
-
-
-def create_experiment_fn(run_config, hparams):
-    """Returns callable function to create Experiment, for learn_runner API"""
-    data_generator = get_data_generator()
-    model_name = FLAGS.model
-
-    def experiment_fn(run_config, hparams):
-        estimator = create_estimator(data_generator, model_name, run_config, hparams)
-        train_input_fn = create_input_fn(data_generator, hparams, train=True)
-        eval_input_fn = create_input_fn(data_generator, hparams, train=False)
-
-        train_monitors = []
-        eval_hooks = []
-        if FLAGS.schedule == "train_and_evaluate":
-            if FLAGS.local_eval_frequency:
-                train_monitors.append(
-                    tf.contrib.learn.monitors.ValidationMonitor(
-                        input_fn=eval_input_fn,
-                        eval_steps=FLAGS.eval_steps,
-                        every_n_steps=FLAGS.local_eval_frequency,
-                        hooks=eval_hooks,
-                        early_stopping_rounds=FLAGS.eval_early_stopping_steps,
-                        early_stopping_metric=FLAGS.eval_early_stopping_metric,
-                        early_stopping_metric_minimize=FLAGS.
-                        eval_early_stopping_metric_minimize))
-
-        experiment = tf.contrib.learn.Experiment(
-            estimator=estimator,
-            train_input_fn=train_input_fn,
-            eval_input_fn=eval_input_fn,
-            train_steps=FLAGS.train_steps,
-            eval_steps=FLAGS.eval_steps,
-            train_steps_per_iteration=FLAGS.local_eval_frequency,
-            train_monitors=train_monitors,
-            eval_hooks=eval_hooks,
-            eval_delay_secs=0,)
-        return experiment
-    
-    return experiment_fn
-
-def create_run_config(model_dir):
-    """Create a RunConfig object."""
-    return tf.contrib.learn.RunConfig(model_dir=model_dir)
-
 def create_hparams(hparams_set):
     hparams = getattr(HPARAMS, hparams_set)()
     hparams.parse(FLAGS.hparams)
     return hparams
 
-def main(_):    
+def main(_):
+    # setup
     tf.logging.set_verbosity(tf.logging.INFO)
+    checkpoints_dir = os.path.join(FLAGS.model_dir, "ckpts")
+    os.makedirs(checkpoints_dir)
 
-    # create folder if not exist
-    if not tf.gfile.Exists(FLAGS.model_dir):
-        tf.gfile.MkDir(FLAGS.model_dir)
-    
-    # experiment components
-    run_config = create_run_config(FLAGS.model_dir)
+    # input     
+    data_generator = get_data_generator()
     hparams = create_hparams(FLAGS.hparams_set)
-    experiment_fn = create_experiment_fn(run_config, hparams)
+    input_fn = data_generator.get_input_fn(
+        batch_size=hparams.batch_size, 
+        data_dir=FLAGS.data_dir, 
+        train=True)
 
-    learn_runner.run(
-        experiment_fn=experiment_fn,
-        schedule=FLAGS.schedule,
-        run_config=run_config,
-        hparams=hparams)
+    # model config
+    model_config = hparams
+    model_config.input_shape = data_generator.input_shape
+    
+    # graph setup
+    graph = tf.Graph()
+    with graph.as_default():
+        # model
+        model_name = FLAGS.model
+        gan = globals()[model_name](model_config)
+
+        # inputs
+        inputs = input_fn()
+        losses, outputs, optimizers = gan.model(inputs) # returns dicts
+
+        # summary
+        summary_op = tf.summary.merge_all()
+        train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
+        saver = tf.train.Saver(max_to_keep=FLAGS.keep_num_ckpts)
+
+    with tf.Session(graph=graph) as sess:
+        # load checkpoint if available
+        checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
+
+        if checkpoint:
+            meta_graph_path = checkpoint.model_checkpoint_path + ".meta"
+            restore = tf.train.import_meta_graph(meta_graph_path)
+            restore.restore(sess, tf.train.latest_checkpoint(checkpoints_dir))
+            step = int(meta_graph_path.split("-")[2].split(".")[0])
+        else:
+            sess.run(tf.global_variables_initializer())
+            step = 0
+
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+
+        try:
+            while not coord.should_stop():
+                # train
+                _updates = sess.run({
+                    losses: losses, 
+                    outputs: outputs,
+                    optimizers: optimizers,
+                    summary: summary_op
+                })
+
+                train_writer.add_summary(_updates['summary'], step)
+                train_writer.flush()
+
+                # logging
+                if step % 100 == 0:
+                    for value, label, in enumerate(_updates['losses']):
+                        tf.logging.info("[step=%d]   %s = %.6f" % (step, label, value))
+
+                # save model
+                if step % FLAGS.save_freq == 0:
+                    save_path = saver.save(sess, checkpoints_dir + "/model.ckpt", global_step=step)
+                    tf.logging.info("[step=%d]   Model saved in file: %s" % save_path)
+
+                # max training
+                if step % FLAGS.train_steps == 0:
+                    coord.request_stop()
+
+                step += 1
+
+        except KeyboardInterrupt:
+            tf.logging.info('Interrupted')
+            coord.request_stop()
+        except Exception as e:
+            coord.request_stop(e)
+        finally:
+            save_path = saver.save(sess, checkpoints_dir + "/model.ckpt", global_step=step)
+            tf.logging.info("Model saved in file: %s" % save_path)
+            # When done, ask the threads to stop.
+            coord.request_stop()
+            coord.join(threads)
 
 if __name__ == '__main__':
     tf.app.run()
+    

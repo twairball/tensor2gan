@@ -18,6 +18,18 @@ def dcgan_base():
         dis_loss_fn="modified_discriminator_loss",
     )
 
+def dcgan_base2():
+    return tf.contrib.training.HParams(
+        batch_size=64,
+        z_dim=100,
+        learning_rate=0.0001,
+        beta1=0.5,
+        gen_filters=1024,
+        gen_loss_fn="modified_generator_loss",
+        dis_filters=64,
+        dis_loss_fn="modified_discriminator_loss",
+    )
+
 def wgan_base():
     hparams = dcgan_base()
     hparams.gen_loss_fn = "wasserstein_generator_loss"

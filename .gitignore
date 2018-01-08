@@ -27,5 +27,4 @@ dist/
 # data download and experiments
 data/
 results/
-train/
 tmp/
