@@ -85,9 +85,12 @@ class GenerateCIFAR10(DataGenerator):
         def parse_features(image, label):
             # reshape image
             image = tf.cast(tf.reshape(image, self.input_shape), tf.float32)
-            label = tf.one_hot(label, self.num_classes)
-            return image, label
-            
+
+            # TODO: add conditioning
+            # label = tf.one_hot(label, self.num_classes)
+            # return image, label
+            return image
+
         def input_fn():
             dataset = tf.data.TFRecordDataset([record_filepath])
             dataset = dataset.map(utils.parse_record)

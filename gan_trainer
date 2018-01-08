@@ -10,7 +10,6 @@ from tensor2gan.data_generators.pokemon import GeneratePokemon
 
 from tensor2gan.models.dcgan import DCGAN
 from tensor2gan.models.sn_dcgan import SN_DCGAN
-from tensor2gan.models import losses
 from tensor2gan.models import hparams as HPARAMS
 
 flags = tf.flags
@@ -52,7 +51,8 @@ def main(_):
     # setup
     tf.logging.set_verbosity(tf.logging.INFO)
     checkpoints_dir = os.path.join(FLAGS.model_dir, "ckpts")
-    os.makedirs(checkpoints_dir)
+    if not os.path.exists(checkpoints_dir):
+        os.makedirs(checkpoints_dir)
 
     # input     
     data_generator = get_data_generator()
@@ -63,9 +63,11 @@ def main(_):
         train=True)
 
     # model config
+    # TODO: refactor to namedtuple
     model_config = hparams
-    model_config.input_shape = data_generator.input_shape
-    
+    model_config.add_hparam("input_shape", data_generator.input_shape)
+    tf.logging.info("model_config: %s" % model_config)
+
     # graph setup
     graph = tf.Graph()
     with graph.as_default():
@@ -73,11 +75,12 @@ def main(_):
         model_name = FLAGS.model
         gan = globals()[model_name](model_config)
 
-        # inputs
-        inputs = input_fn()
-        losses, outputs, optimizers = gan.model(inputs) # returns dicts
+        # input pipeline
+        real_data = input_fn()
+        noise = tf.random_normal([hparams.batch_size, hparams.z_dim])
+        losses, outputs, optimizers = gan.model([real_data, noise]) # returns dicts
 
-        # summary
+        # summary/saver
         summary_op = tf.summary.merge_all()
         train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
         saver = tf.train.Saver(max_to_keep=FLAGS.keep_num_ckpts)
@@ -101,12 +104,12 @@ def main(_):
         try:
             while not coord.should_stop():
                 # train
-                _updates = sess.run({
-                    losses: losses, 
-                    outputs: outputs,
-                    optimizers: optimizers,
-                    summary: summary_op
-                })
+                _updates = sess.run(dict(
+                    losses=losses, 
+                    outputs=outputs,
+                    optimizers=optimizers,
+                    summary=summary_op
+                ))
 
                 train_writer.add_summary(_updates['summary'], step)
                 train_writer.flush()
@@ -119,10 +122,14 @@ def main(_):
                 # save model
                 if step % FLAGS.save_freq == 0:
                     save_path = saver.save(sess, checkpoints_dir + "/model.ckpt", global_step=step)
-                    tf.logging.info("[step=%d]   Model saved in file: %s" % save_path)
+                    if save_path:
+                        tf.logging.info("[step=%d]   Model saved in file: %s" % (step, save_path))
+                    else:
+                        tf.logging.info("[step=%d]   error, model not saved." % step)
 
                 # max training
-                if step % FLAGS.train_steps == 0:
+                if (step + 1) % FLAGS.train_steps == 0:
+                    tf.logging.info("*** end training, steps=%d *** " % step)
                     coord.request_stop()
 
                 step += 1

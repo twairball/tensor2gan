@@ -24,7 +24,6 @@ class Generator:
         
         # filters: 1024, 512, 256, 128, c
         f0, f1, f2, f3, f4 = self.filters, int(self.filters/2), int(self.filters/4), int(self.filters/8), c
-        tf.logging.info("[generator] filters: ", [f0, f1, f2, f3, f4])
 
         def linear_projection(z, filters):
             # linear projection of z
@@ -76,12 +75,10 @@ class Discriminator:
             inputs: image tensor [batch, w, h, c]
         Returns:
             outputs: real/fake logit 
-        """        
+        """
         # filters: 64, 128, 256, 512
         f0, f1, f2, f3 = self.filters, self.filters*2, self.filters*4, self.filters*8
-        tf.logging.info("[disc] filters: %s" % [f0, f1, f2, f3])
-        tf.logging.info("[discriminator] input shape: %s" % inputs.get_shape())
-
+        
         def leaky_relu(x, leak=0.2, name='lrelu'):
             return tf.maximum(x, x * leak, name=name)
             
@@ -145,8 +142,8 @@ class DCGAN(BaseGAN):
         d_real = self.D(real_data)
         d_fake = self.D(fake_data)
         self.outputs = dict(
-            fake_data=fake_data,
-            d_real=d_real,
+            fake_data=fake_data, 
+            d_real=d_real, 
             d_fake=d_fake
         )
         for val, key in enumerate(self.outputs):

@@ -13,23 +13,21 @@ def convert2int(image):
 def batch_convert2int(images):
     return tf.map_fn(convert2int, images, dtype=tf.uint8)
 
-class BaseGAN:
+class BaseGAN(object):
 
     def __init__(self, config):
         """Base GAN class, defines common props and methods to be subclassed
         Args:
             config: Object or hparams with model configurations
+        Properties:
+            optimizers: dict of Tensors
+            losses: dict of Tensors
+            outputs: dict of Tensors
         """
         self.build_model(config)
-
-    @property
-    def optimizers(self): pass
-
-    @property
-    def losses(self): pass
-
-    @property
-    def outputs(self): pass
+        self.optimizers = None
+        self.losses = None
+        self.outputs = None
 
     def build_model(self, config):
         raise NotImplementedError()
