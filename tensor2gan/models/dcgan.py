@@ -1,5 +1,6 @@
 import tensorflow as tf
-from .base import create_optimizer, batch_convert2int
+from .base import create_optimize_all
+from .base import batch_convert2int
 from .base import BaseGAN
 
 class Generator:
@@ -49,7 +50,6 @@ class Generator:
             g = deconv_block(g, f3) # 256, 16x16
             g = deconv_block(g, f4) # 3, 32x32
             output = tf.tanh(g) # activation for images
-            # tf.logging.info("[generator] output: %s" % output)
 
         self.reuse = True
         self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name)
@@ -102,9 +102,9 @@ class Discriminator:
             d = conv_block(d, f1)
             d = conv_block(d, f2)
             d = conv_block(d, f3)
-            # tf.logging.info("[disc] classify block, x: %s" % d)
             d = dense_block(d, 1024)
-            output = tf.layers.dense(d, 1)
+            d = tf.layers.dense(d, 1)
+            output = tf.nn.sigmoid(d)
 
         self.reuse = True
         self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name)
@@ -146,13 +146,13 @@ class DCGAN(BaseGAN):
             d_real=d_real, 
             d_fake=d_fake
         )
-        for val, key in enumerate(self.outputs):
+        for key, val in self.outputs.items():
             tf.summary.histogram(key, val)
 
         # generated image
         tf.summary.image("G/generated", batch_convert2int(fake_data))
 
-        # losses - discriminator
+        # losses
         d_loss_real = tf.reduce_mean(
             tf.nn.sigmoid_cross_entropy_with_logits(logits=d_real, labels=tf.ones_like(d_real)))
         d_loss_fake = tf.reduce_mean(
@@ -166,18 +166,15 @@ class DCGAN(BaseGAN):
             d_loss=d_loss,
             g_loss=g_loss
         )
-        for val, key in enumerate(self.losses):
+        for key, val in self.losses.items():
             tf.summary.scalar(key, val)
 
-        # optimizers
+        # optimize
         if self.optimizers is None:
-            d_optim = create_optimizer(self.config, d_loss, self.G.variables)
-            g_optim = create_optimizer(self.config, g_loss, self.D.variables)
-            self.optimizers = dict(
-                d_optim=d_optim,
-                g_optim=g_optim
-            )
-        
+            self.optimizers = create_optimize_all(self.config, [
+                [d_loss, self.D.variables],
+                [g_loss, self.G.variables]
+            ])
         return self.losses, self.outputs, self.optimizers
         
     def gan_sample(self, z):
