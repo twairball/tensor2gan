@@ -1,5 +1,4 @@
 import tensorflow as tf
-from .base import create_optimize_all
 from .base import batch_convert2int
 from .base import BaseGAN
 
@@ -114,6 +113,14 @@ class Discriminator:
 class DCGAN(BaseGAN):
     """
     DCGAN model
+    configs:
+        input_shape: tuple or list for Discriminator input shape
+        gen_filters: int, Generator top layer filters
+        dis_filters: int, Discriminator top layer filters
+        label_smoothing: float, applied to d_loss_fake label smoothing
+        clip_gradients: float, applied to D and G gradients
+        learning_rate: float, Adam optimizer learning rate
+        beta1: float, Adam optimizer momentum
     """
     def build_model(self, config):
         # params
@@ -152,14 +159,18 @@ class DCGAN(BaseGAN):
         # generated image
         tf.summary.image("G/generated", batch_convert2int(fake_data))
 
-        # losses
+        # losses -- Flip the Discriminator labels:
+        # D(real) = 0, D(fake) = 1
+        # We use label smoothing on D(fake)
+        label_smoothing = self.config.label_smoothing
         d_loss_real = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_real, labels=tf.ones_like(d_real)))
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_real, labels=tf.zeros_like(d_real)))
         d_loss_fake = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_fake, labels=tf.zeros_like(d_fake)))
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_fake, 
+            labels=label_smoothing * tf.ones_like(d_fake)))
         d_loss = d_loss_real + d_loss_fake 
         g_loss = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_fake, labels=tf.ones_like(d_fake)))
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_fake, labels=tf.zeros_like(d_fake)))
         self.losses = dict(
             d_loss_real=d_loss_real, 
             d_loss_fake=d_loss_fake, 
@@ -171,11 +182,31 @@ class DCGAN(BaseGAN):
 
         # optimize
         if self.optimizers is None:
-            self.optimizers = create_optimize_all(self.config, [
-                [d_loss, self.D.variables],
-                [g_loss, self.G.variables]
-            ])
+            lr = self.config.learning_rate
+            beta1 = self.config.beta1
+            clip_gradients = self.config.clip_gradients
+
+            d_optim = create_optimizer(d_loss, self.D.variables, 
+                lr=lr * 0.5, beta1=beta1, clip_gradients=clip_gradients)
+
+            g_optim = create_optimizer(g_loss, self.G.variables, 
+                lr=lr, beta1=beta1, clip_gradients=clip_gradients)
+
+            with tf.control_dependencies([d_optim, g_optim]):
+                self.optimizers = tf.no_op(name='optimizers')
+
         return self.losses, self.outputs, self.optimizers
         
     def gan_sample(self, z):
         return self.G.sample(z)
+
+
+
+def create_optimizer(loss, var_list, lr=1e-3, beta1=0.5, clip_gradients=None):
+    """Create optimizer"""
+    optimizer = tf.train.AdamOptimizer(lr * 0.5, beta1=beta1)
+    gradients, variables = zip(*optimizer.compute_gradients(loss, var_list=var_list))
+    if clip_gradients:
+        gradients, _ = tf.clip_by_global_norm(gradients, clip_gradients)
+    op = optimizer.apply_gradients(zip(gradients, variables))
+    return op

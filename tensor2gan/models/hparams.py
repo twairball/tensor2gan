@@ -10,6 +10,8 @@ def dcgan_base():
         z_dim=100,
         learning_rate=0.0001,
         beta1=0.5,
+        clip_gradients=20.0,
+        label_smoothing=0.9,
         gen_filters=1024,
         dis_filters=64,
     )
