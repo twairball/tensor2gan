@@ -12,6 +12,8 @@ from tensor2gan.models.dcgan import DCGAN
 from tensor2gan.models.sn_dcgan import SN_DCGAN
 from tensor2gan.models import hparams as HPARAMS
 
+from tensor2gan.libs.inception_score.model import get_inception_score
+
 flags = tf.flags
 FLAGS = flags.FLAGS
 
@@ -20,6 +22,10 @@ flags.DEFINE_string("model_dir", default_value='./results',
     docstring="train results directory")
 flags.DEFINE_string("data_dir", "./data", "train data directory")
 flags.DEFINE_float("train_steps", 300000, "max number of training steps")
+
+# eval steps
+flags.DEFINE_integer('eval_freq', 10000, 'interval of evalution')
+flags.DEFINE_integer('eval_size', 5000, 'number of images to evaluate')
 
 # model/save
 flags.DEFINE_integer("save_freq", 5000, "save model every N steps")
@@ -114,7 +120,6 @@ def main(_):
                 # logging
                 if step % 100 == 0:
                     tf.logging.info("[step=%d] %s" %(step, _updates['losses']))
-
                     train_writer.add_summary(_updates['summary'], step)
                     train_writer.flush()
 
@@ -125,6 +130,12 @@ def main(_):
                         tf.logging.info("[step=%d]   Model saved in file: %s" % (step, save_path))
                     else:
                         tf.logging.info("[step=%d]   error, model not saved." % step)
+
+                # eval images
+                if (step + 1) % FLAGS.eval_freq == 0:
+                    # TODO: needs fixing, loaded .pb model can't find tensor operation
+                    # do_inception_score_hook()
+                    pass
 
                 # max training
                 if (step + 1) % FLAGS.train_steps == 0:
@@ -144,6 +155,32 @@ def main(_):
             # When done, ask the threads to stop.
             coord.request_stop()
             coord.join(threads)
+
+def do_inception_score_hook():
+    # TODO;
+    num_images_to_eval = FLAGS.eval_size
+    eval_images = []
+    num_batches = num_images_to_eval // hparams.batch_size + 1
+    tf.logging.info("[EVAL] Calculating Inception Score. Sampling %d images..." % num_images_to_eval)
+
+    for _ in range(num_batches):
+        noise = tf.random_normal([hparams.batch_size, hparams.z_dim])
+        images = sess.run(gan.gan_sample(noise))
+        eval_images.append(images)
+
+    eval_images = np.vstack(eval_images)
+    eval_images = eval_images[:num_images_to_eval]
+    # Calc Inception score
+    eval_images = list(eval_images)
+    inception_score_mean, inception_score_std = get_inception_score(eval_images)
+    tf.logging.info("[EVAL] inception score mean=%s, std=%s" % (inception_score_mean, inception_score_std))
+    # write summary
+    eval_summary_op = tf.summary.merge([
+        tf.summary.scalar("Eval/Inception/mean", inception_score_mean),
+        tf.summary.scalar("Eval/Inception/std", inception_score_std)
+    ])
+    train_writer.add_summary(eval_summary_op, step)
+    train_writer.flush()
 
 if __name__ == '__main__':
     tf.app.run()

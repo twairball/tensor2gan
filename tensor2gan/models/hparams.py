@@ -23,5 +23,5 @@ def wgan_base():
 
 def sn_dcgan_base():
     hparams = dcgan_base()
-    # TODO:
+    hparams.beta2=0.999
     return hparams

@@ -1,8 +1,34 @@
 import tensorflow as tf
 from tensor2gan.models.dcgan import DCGAN
-from tensor2gan.models.base import batch_convert2int
 from tensor2gan.models.spectral_norm import spectral_norm
 
+class SN_DCGAN(DCGAN):
+    """
+    Spectral normalized DCGAN
+    
+    "Spectral Normalization for Generative Adversarial Networks" 
+    https://openreview.net/forum?id=B1QRgziT-
+
+    configs:
+        input_shape: tuple or list for Discriminator input shape (or Generator output shape)
+        gen_filters: int, Generator top layer filters
+        dis_filters: int, Discriminator top layer filters
+        label_smoothing: float, applied to d_loss_fake label smoothing
+        clip_gradients: float, applied to D and G gradients
+        learning_rate: float, Adam optimizer learning rate
+        beta1: float, Adam optimizer momentum
+
+    """
+    def build_model(self, config):
+        # params
+        input_shape = config.input_shape
+        g_filters = config.gen_filters
+        d_filters = config.dis_filters
+
+        self.config = config
+
+        self.G = Generator(output_shape=input_shape, filters=g_filters)
+        self.D = Discriminator(filters=d_filters)
 
 class Generator:
     
@@ -55,12 +81,6 @@ class Generator:
         self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name)
         return output
 
-    def sample(self, input):
-        image = batch_convert2int(self.__call__(input))
-        image = tf.image.encode_jpeg(tf.squeeze(image, [0]))
-        return image
-
-
 class Discriminator:
     
     def __init__(self, name="D", training=True, filters=64):
@@ -107,17 +127,4 @@ class Discriminator:
         self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name)
         return output
 
-class SN_DCGAN(DCGAN):
-    """
-    Spectral normalized DCGAN
-    """
-    def build_model(self, config):
-        # params
-        input_shape = config.input_shape
-        g_filters = config.gen_filters
-        d_filters = config.dis_filters
 
-        self.config = config
-
-        self.G = Generator(output_shape=input_shape, filters=g_filters)
-        self.D = Discriminator(filters=d_filters)
