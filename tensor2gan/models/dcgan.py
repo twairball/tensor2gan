@@ -25,7 +25,7 @@ class Generator:
         # filters: 1024, 512, 256, 128, c
         f0, f1, f2, f3, f4 = self.filters, int(self.filters/2), int(self.filters/4), int(self.filters/8), c
 
-        def linear_projection(z, filters):
+        def linear_projection(z):
             # linear projection of z
             with tf.variable_scope("linear", reuse=self.reuse):
                 g = tf.layers.dense(z, units=h0*w0*f0)
@@ -43,7 +43,7 @@ class Generator:
         
         # model
         with tf.variable_scope(self.name, reuse=self.reuse):
-            g = linear_projection(z, self.filters)
+            g = linear_projection(z)
             g = deconv_block(g, f1) # 1024, 4x4
             g = deconv_block(g, f2) # 512, 8x8
             g = deconv_block(g, f3) # 256, 16x16

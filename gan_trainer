@@ -111,12 +111,12 @@ def main(_):
                     summary=summary_op
                 ))
 
-                train_writer.add_summary(_updates['summary'], step)
-                train_writer.flush()
-
                 # logging
                 if step % 100 == 0:
                     tf.logging.info("[step=%d] %s" %(step, _updates['losses']))
+
+                    train_writer.add_summary(_updates['summary'], step)
+                    train_writer.flush()
 
                 # save model
                 if step % FLAGS.save_freq == 0:

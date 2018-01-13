@@ -22,7 +22,6 @@ def wgan_base():
     return hparams
 
 def sn_dcgan_base():
-    """Base set of hparams"""
     hparams = dcgan_base()
     # TODO:
     return hparams
