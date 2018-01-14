@@ -12,8 +12,6 @@ from tensor2gan.models.dcgan import DCGAN
 from tensor2gan.models.sn_dcgan import SN_DCGAN
 from tensor2gan.models import hparams as HPARAMS
 
-from tensor2gan.libs.inception_score.model import get_inception_score
-
 flags = tf.flags
 FLAGS = flags.FLAGS
 
@@ -23,12 +21,15 @@ flags.DEFINE_string("model_dir", default_value='./results',
 flags.DEFINE_string("data_dir", "./data", "train data directory")
 flags.DEFINE_float("train_steps", 300000, "max number of training steps")
 
+flags.DEFINE_boolean('log_device_placement', False, 
+    """Whether to log device placement.""")
+
 # eval steps
 flags.DEFINE_integer('eval_freq', 10000, 'interval of evalution')
 flags.DEFINE_integer('eval_size', 5000, 'number of images to evaluate')
 
 # model/save
-flags.DEFINE_integer("save_freq", 5000, "save model every N steps")
+# flags.DEFINE_integer("save_freq", 5000, "save model every N steps")
 flags.DEFINE_integer("keep_num_ckpts", 5, "keep max N checkpoints")
 
 # model/dataset
@@ -77,6 +78,9 @@ def main(_):
     # graph setup
     graph = tf.Graph()
     with graph.as_default():
+
+        step = tf.train.get_or_create_global_step()
+
         # model
         model_name = FLAGS.model
         gan = globals()[model_name](model_config)
@@ -89,98 +93,34 @@ def main(_):
         # summary/saver
         summary_op = tf.summary.merge_all()
         train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
-        saver = tf.train.Saver(max_to_keep=FLAGS.keep_num_ckpts)
+        saver = tf.train.Saver(max_to_keep=FLAGS.keep_num_ckpts) # TODO: deprecate
 
-    with tf.Session(graph=graph) as sess:
-        # load checkpoint if available
-        checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
+        # hooks -- MonitoredTrainingSession summary saver doesn't seem to work. 
+        hooks = [
+            tf.train.StopAtStepHook(last_step=FLAGS.train_steps),
+            tf.train.LoggingTensorHook(losses, every_n_iter=100),
+            tf.train.SummarySaverHook(
+                save_steps=100,
+                summary_writer=train_writer,
+                summary_op=summary_op
+                )
+            ]
 
-        if checkpoint:
-            meta_graph_path = checkpoint.model_checkpoint_path + ".meta"
-            restore = tf.train.import_meta_graph(meta_graph_path)
-            restore.restore(sess, tf.train.latest_checkpoint(checkpoints_dir))
-            step = int(meta_graph_path.split("-")[1].split(".")[0])
-        else:
-            sess.run(tf.global_variables_initializer())
-            step = 0
-
-        coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-
-        try:
-            while not coord.should_stop():
-                # train
-                _updates = sess.run(dict(
+        # train
+        with tf.train.MonitoredTrainingSession(
+            checkpoint_dir=FLAGS.model_dir,
+            hooks=hooks,
+            save_summaries_steps=None,
+            config=tf.ConfigProto(
+                log_device_placement=FLAGS.log_device_placement)) as mon_sess:
+            
+            while not mon_sess.should_stop():
+                _updates = mon_sess.run(dict(
                     losses=losses, 
                     outputs=outputs,
                     optimizers=optimizers,
-                    summary=summary_op
+                    summary=summary_op,
                 ))
-
-                # logging
-                if step % 100 == 0:
-                    tf.logging.info("[step=%d] %s" %(step, _updates['losses']))
-                    train_writer.add_summary(_updates['summary'], step)
-                    train_writer.flush()
-
-                # save model
-                if step % FLAGS.save_freq == 0:
-                    save_path = saver.save(sess, checkpoints_dir + "/model.ckpt", global_step=step)
-                    if save_path:
-                        tf.logging.info("[step=%d]   Model saved in file: %s" % (step, save_path))
-                    else:
-                        tf.logging.info("[step=%d]   error, model not saved." % step)
-
-                # eval images
-                if (step + 1) % FLAGS.eval_freq == 0:
-                    # TODO: needs fixing, loaded .pb model can't find tensor operation
-                    # do_inception_score_hook()
-                    pass
-
-                # max training
-                if (step + 1) % FLAGS.train_steps == 0:
-                    tf.logging.info("*** end training, steps=%d *** " % step)
-                    coord.request_stop()
-
-                step += 1
-
-        except KeyboardInterrupt:
-            tf.logging.info('Interrupted')
-            coord.request_stop()
-        except Exception as e:
-            coord.request_stop(e)
-        finally:
-            save_path = saver.save(sess, checkpoints_dir + "/model.ckpt", global_step=step)
-            tf.logging.info("Model saved in file: %s" % save_path)
-            # When done, ask the threads to stop.
-            coord.request_stop()
-            coord.join(threads)
-
-def do_inception_score_hook():
-    # TODO;
-    num_images_to_eval = FLAGS.eval_size
-    eval_images = []
-    num_batches = num_images_to_eval // hparams.batch_size + 1
-    tf.logging.info("[EVAL] Calculating Inception Score. Sampling %d images..." % num_images_to_eval)
-
-    for _ in range(num_batches):
-        noise = tf.random_normal([hparams.batch_size, hparams.z_dim])
-        images = sess.run(gan.gan_sample(noise))
-        eval_images.append(images)
-
-    eval_images = np.vstack(eval_images)
-    eval_images = eval_images[:num_images_to_eval]
-    # Calc Inception score
-    eval_images = list(eval_images)
-    inception_score_mean, inception_score_std = get_inception_score(eval_images)
-    tf.logging.info("[EVAL] inception score mean=%s, std=%s" % (inception_score_mean, inception_score_std))
-    # write summary
-    eval_summary_op = tf.summary.merge([
-        tf.summary.scalar("Eval/Inception/mean", inception_score_mean),
-        tf.summary.scalar("Eval/Inception/std", inception_score_std)
-    ])
-    train_writer.add_summary(eval_summary_op, step)
-    train_writer.flush()
 
 if __name__ == '__main__':
     tf.app.run()
