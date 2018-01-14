@@ -100,6 +100,7 @@ class DCGAN(BaseGAN):
         self.G.training = _train # restore
         return images
 
+
 def create_optimizer(loss, var_list, lr=1e-3, beta1=0.5, clip_gradients=None):
     """Create optimizer with gradient clipping
     """
