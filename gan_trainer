@@ -29,7 +29,7 @@ flags.DEFINE_integer('eval_freq', 10000, 'interval of evalution')
 flags.DEFINE_integer('eval_size', 5000, 'number of images to evaluate')
 
 # model/save
-# flags.DEFINE_integer("save_freq", 5000, "save model every N steps")
+flags.DEFINE_integer("save_freq", 5000, "save model every N steps")
 flags.DEFINE_integer("keep_num_ckpts", 5, "keep max N checkpoints")
 
 # model/dataset
@@ -81,28 +81,36 @@ def main(_):
 
         step = tf.train.get_or_create_global_step()
 
-        # model
-        model_name = FLAGS.model
-        gan = globals()[model_name](model_config)
-
         # input pipeline
         real_data = input_fn()
         noise = tf.random_normal([hparams.batch_size, hparams.z_dim])
+
+        # model
+        model_name = FLAGS.model
+        gan = globals()[model_name](model_config)
         losses, outputs, optimizers = gan.model([real_data, noise]) # returns dicts
 
-        # summary/saver
+        # summary/saver scaffold
         summary_op = tf.summary.merge_all()
-        train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
-        saver = tf.train.Saver(max_to_keep=FLAGS.keep_num_ckpts) # TODO: deprecate
+        # train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
+        saver = tf.train.Saver(max_to_keep=FLAGS.keep_num_ckpts)
+        scaffold = tf.train.Scaffold(
+            summary_op=summary_op,
+            saver=saver
+        )
 
-        # hooks -- MonitoredTrainingSession summary saver doesn't seem to work. 
         hooks = [
             tf.train.StopAtStepHook(last_step=FLAGS.train_steps),
-            tf.train.LoggingTensorHook(losses, every_n_iter=100),
+            tf.train.LoggingTensorHook(losses, every_n_iter=10),
+            tf.train.CheckpointSaverHook(
+                FLAGS.model_dir,
+                save_steps=FLAGS.save_freq,
+                scaffold=scaffold
+            ),
             tf.train.SummarySaverHook(
                 save_steps=100,
-                summary_writer=train_writer,
-                summary_op=summary_op
+                scaffold=scaffold,
+                output_dir=FLAGS.model_dir
                 )
             ]
 
@@ -110,7 +118,10 @@ def main(_):
         with tf.train.MonitoredTrainingSession(
             checkpoint_dir=FLAGS.model_dir,
             hooks=hooks,
+            scaffold=scaffold,
             save_summaries_steps=None,
+            save_summaries_secs=None,
+            save_checkpoint_secs=None,
             config=tf.ConfigProto(
                 log_device_placement=FLAGS.log_device_placement)) as mon_sess:
             
@@ -119,8 +130,9 @@ def main(_):
                     losses=losses, 
                     outputs=outputs,
                     optimizers=optimizers,
-                    summary=summary_op,
+                    summary=summary_op
                 ))
+
 
 if __name__ == '__main__':
     tf.app.run()

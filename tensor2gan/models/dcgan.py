@@ -102,13 +102,14 @@ class DCGAN(BaseGAN):
 
 
 def create_optimizer(loss, var_list, lr=1e-3, beta1=0.5, clip_gradients=None):
-    """Create optimizer with gradient clipping
+    """Create optimizer with gradient clipping. Returns training op. 
     """
     optimizer = tf.train.AdamOptimizer(lr * 0.5, beta1=beta1)
     gradients, variables = zip(*optimizer.compute_gradients(loss, var_list=var_list))
     if clip_gradients:
         gradients, _ = tf.clip_by_global_norm(gradients, clip_gradients)
-    op = optimizer.apply_gradients(zip(gradients, variables))
+    op = optimizer.apply_gradients(zip(gradients, variables),
+        global_step=tf.train.get_or_create_global_step())
     return op
 
 
