@@ -1,11 +1,11 @@
 import tensorflow as tf
 
-from tensor2gan.libs.inception_score.model import get_inception_score
+# from tensor2gan.libs.inception_score.model import get_inception_score
 
 def convert2int(image):
     """ Transfrom from float tensor ([-1.,1.]) to int image ([0,255])
     """
-    return tf.image.convert_image_dtype((image+1.0)/2.0, tf.uint8)
+    return tf.image.convert_image_dtype((image+1.0) * 127.5, tf.uint8)
 
 def batch_convert2int(images):
     return tf.map_fn(convert2int, images, dtype=tf.uint8)
@@ -55,6 +55,7 @@ class BaseGAN(object):
         Returns:
             mean, std: floats with inception scores
         """
-        eval_images = self.gan_sample(z)
-        inception_score_mean, inception_score_std = get_inception_score(eval_images)
-        return inception_score_mean, inception_score_std
+        # eval_images = self.gan_sample(z)
+        # inception_score_mean, inception_score_std = get_inception_score(eval_images)
+        # return inception_score_mean, inception_score_std
+        raise NotImplementedError()    

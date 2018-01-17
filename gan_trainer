@@ -12,6 +12,8 @@ from tensor2gan.models.dcgan import DCGAN
 from tensor2gan.models.sn_dcgan import SN_DCGAN
 from tensor2gan.models import hparams as HPARAMS
 
+from tensor2gan.utils.save_image_hook import SaveImageHook
+
 flags = tf.flags
 FLAGS = flags.FLAGS
 
@@ -26,7 +28,7 @@ flags.DEFINE_boolean('log_device_placement', False,
 
 # eval steps
 flags.DEFINE_integer('eval_freq', 10000, 'interval of evalution')
-flags.DEFINE_integer('eval_size', 5000, 'number of images to evaluate')
+flags.DEFINE_integer('eval_size', 144, 'number of images to evaluate')
 
 # model/save
 flags.DEFINE_integer("save_freq", 5000, "save model every N steps")
@@ -99,6 +101,10 @@ def main(_):
             saver=saver
         )
 
+        image_dir = os.path.join(FLAGS.model_dir, "images")
+        if not os.path.exists(image_dir):
+            os.makedirs(image_dir)
+
         hooks = [
             tf.train.StopAtStepHook(last_step=FLAGS.train_steps),
             tf.train.LoggingTensorHook(losses, every_n_iter=10),
@@ -111,6 +117,12 @@ def main(_):
                 save_steps=100,
                 scaffold=scaffold,
                 output_dir=FLAGS.model_dir
+            ),
+            SaveImageHook(
+                outputs['fake_data'],
+                save_steps=30,
+                save_num=10,
+                image_dir=image_dir
                 )
             ]
 
