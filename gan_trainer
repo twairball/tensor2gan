@@ -28,7 +28,7 @@ flags.DEFINE_boolean('log_device_placement', False,
 
 # eval steps
 flags.DEFINE_integer('eval_freq', 10000, 'interval of evalution')
-flags.DEFINE_integer('eval_size', 144, 'number of images to evaluate')
+flags.DEFINE_integer('eval_size', 12, 'number of images to evaluate')
 
 # model/save
 flags.DEFINE_integer("save_freq", 5000, "save model every N steps")
@@ -120,8 +120,8 @@ def main(_):
             ),
             SaveImageHook(
                 outputs['fake_data'],
-                save_steps=100,
-                save_num=5,
+                save_steps=FLAGS.eval_freq,
+                save_num=FLAGS.eval_size,
                 image_dir=image_dir
                 )
             ]
