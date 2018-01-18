@@ -1,6 +1,8 @@
-import tensorflow as tf
-import warnings
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
+import tensorflow as tf
 
 def l2_norm(x, epsilon=1e-12):
     return x / (tf.reduce_sum(x ** 2) ** 0.5 + epsilon)

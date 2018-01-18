@@ -1,6 +1,9 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 """
 Adaptation of tensor2tensor/data_generators/generator_utils.py
-
 """
 import tensorflow as tf
 import numpy as np

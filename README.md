@@ -1,6 +1,6 @@
 # Tensor2Gan
 
-Collection of GAN experiments, using TF Estimator and TF GAN. 
+Toolkit for GAN experiments. 
 
 ### Install
 
@@ -12,7 +12,7 @@ Collection of GAN experiments, using TF Estimator and TF GAN.
 ./gan_trainer \
     --model_dir=./train \           # save model checkpoints
     --data_dir=./data \             # save dataset
-    --generator=GenerateCIFAR10 \   # Data Generator
+    --generator=generate_cifar10 \  # Data Generator
     --model=DCGAN                   # [DCGAN | SN_DCGAN]
     --hparams_set=dcgan_base \      # hparams set
     --hparams='batch_size=32' \     # hparams override
@@ -26,11 +26,11 @@ Collection of GAN experiments, using TF Estimator and TF GAN.
 
 `DataGenerator` define input pipelines used to feed to GAN networks. 
 
-It provides a `get_input_fn` that returns a callable function, consumed by `Estimators`. 
+It provides a `get_input_fn` that returns a callable function, that returns tensors for model inputs. 
 
 It also maintains some useful properties, e.g. `num_classes` and `input_shape`
 
-## GAN
+## GAN Implementations
 
 - DCGAN
 - SN_DCGAN: DCGAN with Spectral Normalization

@@ -1,18 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
-import tensorflow as tf
-import numpy as np
 import os
+import tensorflow as tf
 
-from tensor2gan.data_generators.cifar10 import GenerateCIFAR10
-from tensor2gan.data_generators.pokemon import GeneratePokemon
-
-from tensor2gan.models.dcgan import DCGAN
-from tensor2gan.models.sn_dcgan import SN_DCGAN
 from tensor2gan.models import hparams as HPARAMS
 
 from tensor2gan.utils.save_image_hook import SaveImageHook
+from tensor2gan.utils.builders import build_data_generator, build_model
 
 flags = tf.flags
 FLAGS = flags.FLAGS
@@ -35,8 +33,8 @@ flags.DEFINE_integer("save_freq", 5000, "save model every N steps")
 flags.DEFINE_integer("keep_num_ckpts", 5, "keep max N checkpoints")
 
 # model/dataset
-flags.DEFINE_string("generator", "GenerateCIFAR10", 
-    "Specify data_generator class. [GenerateCIFAR10|GeneratePokemon]")
+flags.DEFINE_string("generator", "generate_cifar10", 
+    "Specify data_generator class. [generate_cifar10|generate_pokemon]")
 flags.DEFINE_string("model", "DCGAN", 
     "Specify model class. [DCGAN|SN_DCGAN]")
 
@@ -47,9 +45,7 @@ flags.DEFINE_string("hparams", "",
     "custom hparams, e.g. 'batch_size=32, z_dim=100'")
 
 def get_data_generator():
-    class_name = FLAGS.generator
-    _class = globals()[class_name]
-    return _class()
+    return build_data_generator(FLAGS.generator)
 
 def create_hparams(hparams_set):
     hparams = getattr(HPARAMS, hparams_set)()
@@ -99,8 +95,7 @@ def main(_):
         noise = tf.random_normal([hparams.batch_size, hparams.z_dim])
 
         # model
-        model_name = FLAGS.model
-        gan = globals()[model_name](model_config)
+        gan = build_model(FLAGS.model, model_config)
         losses, outputs, optimizers = gan.model([real_data, noise]) # returns dicts
 
         # summary/saver scaffold

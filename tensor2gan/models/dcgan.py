@@ -1,7 +1,13 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow as tf
 from tensor2gan.models.base import batch_convert2int
 from tensor2gan.models.base import BaseGAN
+from tensor2gan.utils import registry
 
+@registry.register_model
 class DCGAN(BaseGAN):
     """
     DCGAN model

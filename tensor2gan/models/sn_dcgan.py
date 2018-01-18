@@ -1,7 +1,13 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow as tf
 from tensor2gan.models.dcgan import DCGAN
 from tensor2gan.models.spectral_norm import spectral_norm
+from tensor2gan.utils import registry
 
+@registry.register_model
 class SN_DCGAN(DCGAN):
     """
     Spectral normalized DCGAN

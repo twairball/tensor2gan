@@ -1,9 +1,14 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow as tf
 import numpy as np
 import glob, os, pickle
 
 from tensor2gan.data_generators import utils
 from tensor2gan.data_generators.generator import DataGenerator
+from tensor2gan.utils import registry
 
 Dataset = tf.data.Dataset
 
@@ -47,8 +52,8 @@ def read_dataset(train=True, data_dir="./data"):
         labels.append(lbl)
     return np.concatenate(images), np.concatenate(labels).astype(int)
 
-
-class GenerateCIFAR10(DataGenerator):
+@registry.register_data_generator
+class GenerateCifar10(DataGenerator):
     
     @property
     def num_classes(self):
