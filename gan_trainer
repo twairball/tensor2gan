@@ -56,6 +56,17 @@ def create_hparams(hparams_set):
     hparams.parse(FLAGS.hparams)
     return hparams
 
+def get_image_saver_hook(output_tensor):    
+    image_dir = os.path.join(FLAGS.model_dir, "images")
+    if not os.path.exists(image_dir):
+        os.makedirs(image_dir)
+    return SaveImageHook(
+        output_tensor,
+        save_steps=FLAGS.eval_freq,
+        save_num=FLAGS.eval_size,
+        image_dir=image_dir
+        )
+
 def main(_):
     # setup
     tf.logging.set_verbosity(tf.logging.INFO)
@@ -94,16 +105,11 @@ def main(_):
 
         # summary/saver scaffold
         summary_op = tf.summary.merge_all()
-        # train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
         saver = tf.train.Saver(max_to_keep=FLAGS.keep_num_ckpts)
         scaffold = tf.train.Scaffold(
             summary_op=summary_op,
             saver=saver
         )
-
-        image_dir = os.path.join(FLAGS.model_dir, "images")
-        if not os.path.exists(image_dir):
-            os.makedirs(image_dir)
 
         hooks = [
             tf.train.StopAtStepHook(last_step=FLAGS.train_steps),
@@ -117,15 +123,12 @@ def main(_):
                 save_steps=100,
                 scaffold=scaffold,
                 output_dir=FLAGS.model_dir
-            ),
-            SaveImageHook(
-                outputs['fake_data'],
-                save_steps=FLAGS.eval_freq,
-                save_num=FLAGS.eval_size,
-                image_dir=image_dir
-                )
-            ]
+            )]
 
+        if FLAGS.eval_freq and FLAGS.eval_size:
+            image_saver_hook = get_image_saver_hook(outputs['fake_data'])
+            hooks = hooks + [image_saver_hook]
+            
         # train
         with tf.train.MonitoredTrainingSession(
             checkpoint_dir=FLAGS.model_dir,
