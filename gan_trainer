@@ -107,7 +107,7 @@ def main(_):
 
         hooks = [
             tf.train.StopAtStepHook(last_step=FLAGS.train_steps),
-            tf.train.LoggingTensorHook(losses, every_n_iter=10),
+            tf.train.LoggingTensorHook(losses, every_n_iter=100),
             tf.train.CheckpointSaverHook(
                 FLAGS.model_dir,
                 save_steps=FLAGS.save_freq,
@@ -120,8 +120,8 @@ def main(_):
             ),
             SaveImageHook(
                 outputs['fake_data'],
-                save_steps=30,
-                save_num=10,
+                save_steps=100,
+                save_num=5,
                 image_dir=image_dir
                 )
             ]
