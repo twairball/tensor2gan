@@ -16,7 +16,7 @@ Dataset = tf.data.Dataset
 
 DIR_NAME = "MNIST_DATA"
 
-@registry.register_model
+@registry.register_data_generator
 class GenerateMnist(DataGenerator):
 
     @property
