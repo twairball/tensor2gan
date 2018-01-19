@@ -38,7 +38,7 @@ flags.DEFINE_integer("keep_num_ckpts", 5, "keep max N checkpoints")
 flags.DEFINE_string("generator", "cifar10", 
     "Specify data_generator class. [cifar10|mnist|pokemon]")
 flags.DEFINE_string("model", "DCGAN", 
-    "Specify model class. [DCGAN|SN_DCGAN]")
+    "Specify model class. [DCGAN|SN_DCGAN|WGAN]")
 
 # hparams
 flags.DEFINE_string("hparams_set", "dcgan_base", 

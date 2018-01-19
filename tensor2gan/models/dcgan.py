@@ -48,8 +48,8 @@ class DCGAN(BaseGAN):
 
         # outputs
         fake_data = self.G(z)
-        d_real = self.D(real_data)
-        d_fake = self.D(fake_data)
+        _, d_real = self.D(real_data)
+        _, d_fake = self.D(fake_data)
         self.outputs = dict(
             fake_data=fake_data, 
             d_real=d_real, 
@@ -83,20 +83,22 @@ class DCGAN(BaseGAN):
             tf.summary.scalar(key, val)
 
         # optimize
-        if self.optimizers is None:
-            lr = self.config.learning_rate
-            beta1 = self.config.beta1
-            clip_gradients = self.config.clip_gradients
+        lr = self.config.learning_rate
+        beta1 = self.config.beta1
+        clip_gradients = self.config.clip_gradients
 
+        with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
             d_optim = create_optimizer(d_loss, self.D.variables, 
                 lr=lr * 0.5, beta1=beta1, clip_gradients=clip_gradients)
 
+        # train D then G
+        with tf.control_dependencies([d_optim]):
             g_optim = create_optimizer(g_loss, self.G.variables, 
                 lr=lr, beta1=beta1, clip_gradients=clip_gradients)
 
-            with tf.control_dependencies([d_optim, g_optim]):
-                self.optimizers = tf.no_op(name='optimizers')
-
+        # group training ops
+        self.optimizers = tf.group(d_optim, g_optim)
+        
         return self.losses, self.outputs, self.optimizers
         
     def gan_sample(self, z):       
@@ -110,7 +112,7 @@ class DCGAN(BaseGAN):
 def create_optimizer(loss, var_list, lr=1e-3, beta1=0.5, clip_gradients=None):
     """Create optimizer with gradient clipping. Returns training op. 
     """
-    optimizer = tf.train.AdamOptimizer(lr * 0.5, beta1=beta1)
+    optimizer = tf.train.AdamOptimizer(lr, beta1=beta1)
     gradients, variables = zip(*optimizer.compute_gradients(loss, var_list=var_list))
     if clip_gradients:
         gradients, _ = tf.clip_by_global_norm(gradients, clip_gradients)
@@ -213,9 +215,9 @@ class Discriminator:
             d = conv_block(d, f2)
             d = conv_block(d, f3)
             d = dense_block(d, 1024)
-            d = tf.layers.dense(d, 1)
-            output = tf.nn.sigmoid(d)
+            output = tf.layers.dense(d, 1)
+            logit = tf.nn.sigmoid(output)
 
         self.reuse = True
         self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name)
-        return output
+        return output, logit

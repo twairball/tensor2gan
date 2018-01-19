@@ -22,7 +22,7 @@ def dcgan_base():
 
 def wgan_base():
     hparams = dcgan_base()
-    # TODO:
+    hparams.learning_rate=5e-5
     return hparams
 
 def sn_dcgan_base():
