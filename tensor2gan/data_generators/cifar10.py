@@ -82,8 +82,8 @@ class GenerateCifar10(DataGenerator):
         return record_filepath
 
     def get_input_fn(self, batch_size, data_dir, train=True):
-        """Create input pipeline. Returns input_fn, a callable function that 
-        returns next element in iterator.
+        """Create input pipeline. Returns input_fn, a callable 
+        function that returns next element in iterator.
         """
         record_filepath = self.prepare_data(data_dir, train)
 

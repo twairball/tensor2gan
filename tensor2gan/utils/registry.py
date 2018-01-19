@@ -20,7 +20,10 @@ def default_model_name(obj_class):
     return obj_class.__name__
 
 def default_data_generator_name(obj_class):
-    return _convert_camel_to_snake(obj_class.__name__)
+    name = _convert_camel_to_snake(obj_class.__name__)
+    # remove 'generate_' substring for convenience
+    name = name.replace('generate_', '')
+    return name
 
 # Registry
 _MODELS = {}
@@ -69,3 +72,27 @@ def register_data_generator(name=None):
         return decorator(name)
 
     return lambda data_generator_cls: decorator(data_generator_cls, name)
+
+def bullet_str(name_list, indent=4):
+    result = ""
+    for name in name_list:
+        line = "%s* %s\n" % (" " * indent, name)
+        result = result + line
+    return result
+
+def help_string():
+    """Print registry contents"""
+    help_str = """
+Registry contents:
+------------------
+
+    Models:
+%s
+
+    Data Generators:
+%s
+    """
+    model_str = bullet_str(list(_MODELS))
+    data_gen_str = bullet_str(list(_DATA_GENERATORS))
+    return help_str % (model_str, data_gen_str)
+

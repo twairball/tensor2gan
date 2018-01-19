@@ -12,7 +12,7 @@ Toolkit for GAN experiments.
 ./gan_trainer \
     --model_dir=./train \           # save model checkpoints
     --data_dir=./data \             # save dataset
-    --generator=generate_cifar10 \  # Data Generator
+    --generator=cifar10 \           # [cifar10 | mnist | pokemon]
     --model=DCGAN                   # [DCGAN | SN_DCGAN]
     --hparams_set=dcgan_base \      # hparams set
     --hparams='batch_size=32' \     # hparams override
@@ -22,13 +22,28 @@ Toolkit for GAN experiments.
 
 ````
 
+Print available datasets and models:
+
+````
+./gan_trainer --registry_help
+````
+
 ## Data Generators
 
 `DataGenerator` define input pipelines used to feed to GAN networks. 
 
-It provides a `get_input_fn` that returns a callable function, that returns tensors for model inputs. 
+It provides a `get_input_fn` that returns a callable function, that returns tensors for model inputs. It also maintains some useful properties, e.g. `num_classes` and `input_shape`
 
-It also maintains some useful properties, e.g. `num_classes` and `input_shape`
+Custom datasets can be added by subclassing `DataGenerator` and registering to registry:
+
+````
+from tensor2gan.utils import registry
+
+@registry.register_data_generator
+class GenerateCustomData(DataGenerator):
+    ....
+
+````
 
 ## GAN Implementations
 

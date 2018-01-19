@@ -64,10 +64,9 @@ class GeneratePokemon(DataGenerator):
 
         return record_filepath
     
-    def get_input_fn(self, batch_size, data_dir="./data", 
-        train=True):
-        """Create input pipeline. Returns input_fn, a callable function that 
-        returns next element in iterator.
+    def get_input_fn(self, batch_size, data_dir="./data", train=True):
+        """Create input pipeline. Returns input_fn, a callable 
+        function that returns next element in iterator.
         """
         record_filepath = self.prepare_data(data_dir, train)
 
