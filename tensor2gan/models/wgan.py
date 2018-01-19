@@ -68,7 +68,10 @@ class WGAN(DCGAN):
         lr = self.config.learning_rate
         with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
             d_optim = tf.train.RMSPropOptimizer(learning_rate=lr)\
-                .minimize(d_loss, var_list=self.D.variables)
+                .minimize(
+                    d_loss, 
+                    global_step=tf.train.get_or_create_global_step(),
+                    var_list=self.D.variables)
         
         # clip D values
         with tf.control_dependencies([d_optim]):
@@ -76,7 +79,10 @@ class WGAN(DCGAN):
 
         with tf.control_dependencies([d_optim, d_clip]):
             g_optim = tf.train.RMSPropOptimizer(learning_rate=lr)\
-                .minimize(g_loss, var_list=self.G.variables)
+                .minimize(
+                    g_loss, 
+                    global_step=tf.train.get_or_create_global_step(),
+                    var_list=self.G.variables)
 
         # group training ops
         self.optimizers = tf.group(d_optim, g_optim)
