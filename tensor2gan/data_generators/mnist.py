@@ -36,6 +36,7 @@ class GenerateMnist(DataGenerator):
 
         # Create a dataset tensor from the images and the labels
         images = _mnist.train.images.reshape([-1, 28, 28, 1])
+        images = (images - 0.5) * 2  # normalize [-1, 1]
         # add extra class; 0 class reserved for "fake" images
         labels = _mnist.train.labels
         fake_class = np.zeros((len(labels),1))

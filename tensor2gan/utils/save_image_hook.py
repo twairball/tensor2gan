@@ -83,7 +83,11 @@ class SaveImageHook(tf.train.SessionRunHook):
     def save(self, images, step):
         for i in range(self.save_num):
             path = os.path.join(self.image_dir, "img_%d_%d.jpg" % (step, i))
-            img = images[i]
-            im = Image.fromarray(np.uint8((img + 1) * 127.5))
+
+            # if mnist, we squeeze to dims (h,w) and change mode to grayscale
+            img = images[i].squeeze()
+            mode = "L" if len(img.shape) == 2 else None
+
+            im = Image.fromarray(np.uint8((img + 1) * 127.5), mode=mode)
             im.save(path)
 
