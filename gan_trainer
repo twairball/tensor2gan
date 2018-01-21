@@ -106,7 +106,10 @@ def main(_):
 
         # model
         gan = build_model(FLAGS.model, model_config)
-        losses, outputs, optimizers = gan.model([real_data, noise]) # returns dicts
+        losses, outputs, optimizers = gan.model([real_data, noise])
+
+        # eval
+        fake_data = gan.eval(noise)
 
         # summary/saver scaffold
         summary_op = tf.summary.merge_all()
@@ -131,7 +134,7 @@ def main(_):
             )]
 
         if FLAGS.eval_freq and FLAGS.eval_size:
-            image_saver_hook = get_image_saver_hook(outputs['fake_data'])
+            image_saver_hook = get_image_saver_hook(fake_data)
             hooks = hooks + [image_saver_hook]
             
         # train
