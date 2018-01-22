@@ -48,7 +48,7 @@ class GenerateMnist(DataGenerator):
             dataset = Dataset.from_tensor_slices(images)
 
             # Create batches of data
-            dataset = dataset.batch(batch_size)
+            dataset = dataset.shuffle(batch_size * 5).batch(batch_size).repeat()
             iterator = dataset.make_one_shot_iterator()
             return iterator.get_next()
 
