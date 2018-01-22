@@ -152,24 +152,31 @@ class Generator:
                 g = tf.layers.dense(z, units=h0*w0*f0)
                 g = tf.reshape(g, shape=[-1, h0, w0, f0])
                 g = tf.layers.batch_normalization(g, training=training)
-                g = tf.nn.relu(g)
+                g = tf.nn.leaky_relu(g, alpha=0.2)
                 return g
         
         def deconv_block(x, filters, kernel_size=[4,4], strides=(2,2)):
             with tf.variable_scope("deconv%d" % filters, reuse=self.reuse):
-                g = tf.layers.conv2d_transpose(x, filters, kernel_size, strides=strides, padding='SAME')
+                g = tf.layers.conv2d_transpose(x, filters, kernel_size, strides=strides, padding='SAME',
+                    kernel_initializer=tf.truncated_normal_initializer(stddev=0.02))
                 g = tf.layers.batch_normalization(g, training=training)
-                g = tf.nn.relu(g)
+                g = tf.nn.leaky_relu(g, alpha=0.2)
                 return g
-        
+
+        def last_deconv_block(x, filters, kernel_size=[4,4], strides=(2,2)):
+            with tf.variable_scope("deconv%d" % filters, reuse=self.reuse):
+                g = tf.layers.conv2d_transpose(x, filters, kernel_size, strides=strides, padding='SAME',
+                    kernel_initializer=tf.truncated_normal_initializer(stddev=0.02))
+                g = tf.nn.tanh(g)
+                return g
+            
         # model
         with tf.variable_scope(self.name, reuse=self.reuse):
             g = linear_projection(z)
             g = deconv_block(g, f1) # 1024, 4x4
             g = deconv_block(g, f2) # 512, 8x8
             g = deconv_block(g, f3) # 256, 16x16
-            g = deconv_block(g, f4) # 3, 32x32
-            output = tf.tanh(g) # activation for images
+            output = last_deconv_block(g, f4) # 3, 32x32, tanh
 
         self.reuse = True
         self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name)
@@ -177,7 +184,7 @@ class Generator:
 
 class Discriminator:
     
-    def __init__(self, name="D", training=True, filters=64):
+    def __init__(self, name="D", filters=64):
         self.name = name
         self.filters = filters
         self.reuse = False
@@ -192,22 +199,20 @@ class Discriminator:
         """
         # filters: 64, 128, 256, 512
         f0, f1, f2, f3 = self.filters, self.filters*2, self.filters*4, self.filters*8
-        
-        def leaky_relu(x, leak=0.2, name='lrelu'):
-            return tf.maximum(x, x * leak, name=name)
-            
+                    
         def conv_block(x, filters):
             with tf.variable_scope("conv%d" % filters, reuse=self.reuse):
-                d = tf.layers.conv2d(x, filters, [5,5], strides=(2,2), padding='SAME')
+                d = tf.layers.conv2d(x, filters, [5,5], strides=(2,2), padding='SAME',
+                    kernel_initializer=tf.truncated_normal_initializer(stddev=0.02))
                 d = tf.layers.batch_normalization(d, training=training)
-                d = leaky_relu(d)
+                d = tf.nn.leaky_relu(d, alpha=0.2)
                 return d
         
         def dense_block(x, filters=1024):
             with tf.variable_scope("dense", reuse=self.reuse):
                 d = tf.layers.dense(x, filters)
                 d = tf.layers.batch_normalization(d, training=training)
-                d = leaky_relu(d)
+                d = tf.nn.leaky_relu(d, alpha=0.2)
                 return d
 
         # model

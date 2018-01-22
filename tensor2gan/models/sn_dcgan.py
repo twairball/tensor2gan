@@ -38,14 +38,13 @@ class SN_DCGAN(DCGAN):
 
 class Generator:
     
-    def __init__(self, name="G", training=True, filters=1024, output_shape=(32, 32, 3)):
+    def __init__(self, name="G", filters=1024, output_shape=(32, 32, 3)):
         self.name = name
         self.filters = filters
-        self.training = training
         self.output_shape = output_shape
         self.reuse = False
 
-    def __call__(self, z):
+    def __call__(self, z, training=True):
         """
         Args:
             z: noise tensor [None, z_dim]
@@ -63,15 +62,23 @@ class Generator:
             with tf.variable_scope("linear", reuse=self.reuse):
                 g = tf.layers.dense(z, units=h0*w0*f0)
                 g = tf.reshape(g, shape=[-1, h0, w0, f0])
-                g = tf.layers.batch_normalization(g, training=self.training)
-                g = tf.nn.relu(g)
+                g = tf.layers.batch_normalization(g, training=training)
+                g = tf.nn.leaky_relu(g, alpha=0.2)
                 return g
 
         def deconv_block(x, filters, kernel_size=[4,4], strides=(2,2)):
             with tf.variable_scope("deconv%d" % filters, reuse=self.reuse):
-                g = tf.layers.conv2d_transpose(x, filters, kernel_size, strides=strides, padding='SAME')
-                g = tf.layers.batch_normalization(g, training=self.training)
-                g = tf.nn.relu(g)
+                g = tf.layers.conv2d_transpose(x, filters, kernel_size, strides=strides, padding='SAME',
+                    kernel_initializer=tf.truncated_normal_initializer(stddev=0.02))
+                g = tf.layers.batch_normalization(g, training=training)
+                g = tf.nn.leaky_relu(g, alpha=0.2)
+                return g
+
+        def last_deconv_block(x, filters, kernel_size=[3,3], strides=(1,1)):
+            with tf.variable_scope("deconv%d" % filters, reuse=self.reuse):
+                g = tf.layers.conv2d_transpose(x, filters, kernel_size, strides=strides, padding='SAME',
+                    kernel_initializer=tf.truncated_normal_initializer(stddev=0.02))
+                g = tf.nn.tanh(g)
                 return g
         
         # model
@@ -80,8 +87,7 @@ class Generator:
             g = deconv_block(g, f1) # 256, 8x8
             g = deconv_block(g, f2) # 128, 16x16
             g = deconv_block(g, f3) # 64, 32x32
-            g = deconv_block(g, f4, kernel_size=[3,3], strides=(1,1)) # 3, 32x32
-            output = tf.tanh(g) # activation for images
+            output = last_deconv_block(g, f4) # 3, 32x32, tanh
 
         self.reuse = True
         self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name)
@@ -89,13 +95,12 @@ class Generator:
 
 class Discriminator:
     
-    def __init__(self, name="D", training=True, filters=64):
+    def __init__(self, name="D", filters=64):
         self.name = name
         self.filters = filters
-        self.training = training
         self.reuse = False
 
-    def __call__(self, inputs):
+    def __call__(self, inputs, training=True):
         """
         Args:
             inputs: image tensor [batch, w, h, c]
@@ -105,15 +110,13 @@ class Discriminator:
         # filters: 64, 128, 256, 512
         f0, f1, f2, f3 = self.filters, self.filters*2, self.filters*4, self.filters*8
         
-        def leaky_relu(x, leak=0.2, name='lrelu'):
-            return tf.maximum(x, x * leak, name=name)
-            
         def conv_block(x, filters, kernel_size=[5,5], strides=(2,2), name=None):
             _name = name if name else "conv%d" % filters
             with tf.variable_scope(_name, reuse=self.reuse):
                 d = tf.layers.conv2d(x, filters, kernel_size , strides=strides, padding='SAME', 
+                    kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
                     kernel_regularizer=spectral_norm)
-                d = leaky_relu(d)
+                d = tf.nn.leaky_relu(d, alpha=0.2)
                 return d
         
         # model
