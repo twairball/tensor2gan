@@ -37,8 +37,9 @@ class WGAN(DCGAN):
 
         # outputs
         fake_data = self.G(z)
-        d_real, _ = self.D(real_data) # WGAN uses output, not logits.
-        d_fake, _ = self.D(fake_data)
+        d_real, d_real_logits = self.D(real_data)
+        d_fake, d_fake_logits = self.D(fake_data)
+
         self.outputs = dict(
             fake_data=fake_data, 
             d_real=d_real, 
@@ -51,8 +52,8 @@ class WGAN(DCGAN):
         tf.summary.image("G/generated", batch_convert2int(fake_data))
 
         # TODO: add apply_regularization to weights
-        d_loss_real = tf.reduce_mean(d_real)
-        d_loss_fake = tf.scalar_mul(-1, tf.reduce_mean(d_fake))
+        d_loss_real = tf.reduce_mean(d_real_logits)
+        d_loss_fake = tf.scalar_mul(-1, tf.reduce_mean(d_fake_logits))
         d_loss = d_loss_real + d_loss_fake
         g_loss = tf.reduce_mean(d_fake)
         self.losses = dict(

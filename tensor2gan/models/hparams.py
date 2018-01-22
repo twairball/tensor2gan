@@ -14,11 +14,18 @@ def dcgan_base():
         z_dim=100,
         learning_rate=0.0001,
         beta1=0.5,
-        clip_gradients=20.0,
-        label_smoothing=0.9,
+        clip_gradients=None,
+        label_smoothing=None,
         gen_filters=1024,
         dis_filters=64,
     )
+
+def dcgan_label_smoothing():
+    """Base set of hparams"""
+    hparams = dcgan_base()
+    hparams.label_smoothing=0.9
+    hparams.clip_gradients=20.0
+    return hparams
 
 def wgan_base():
     hparams = dcgan_base()

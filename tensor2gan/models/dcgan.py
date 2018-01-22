@@ -48,8 +48,8 @@ class DCGAN(BaseGAN):
 
         # outputs
         fake_data = self.G(z)
-        _, d_real = self.D(real_data)
-        _, d_fake = self.D(fake_data)
+        d_real, d_real_logits = self.D(real_data)
+        d_fake, d_fake_logits = self.D(fake_data)
         self.outputs = dict(
             fake_data=fake_data, 
             d_real=d_real, 
@@ -57,19 +57,15 @@ class DCGAN(BaseGAN):
         )
         for key, val in self.outputs.items():
             tf.summary.histogram(key, val)
+        
+        # losses
+        if self.config.label_smoothing is not None:
+            d_loss_real, d_loss_fake, g_loss = label_smoothing_losses(
+                d_real_logits, d_fake_logits, self.config.label_smoothing)
+        else:
+            d_loss_real, d_loss_fake, g_loss = get_losses(d_real_logits, d_fake_logits)
 
-        # losses -- Flip the Discriminator labels:
-        # D(real) = 0, D(fake) = 1
-        # We use label smoothing on D(fake)
-        label_smoothing = self.config.label_smoothing
-        d_loss_real = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_real, labels=tf.zeros_like(d_real)))
-        d_loss_fake = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_fake, 
-            labels=label_smoothing * tf.ones_like(d_fake)))
-        d_loss = d_loss_real + d_loss_fake 
-        g_loss = tf.reduce_mean(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=d_fake, labels=tf.zeros_like(d_fake)))
+        d_loss = d_loss_real + d_loss_fake
         self.losses = dict(
             d_loss_real=d_loss_real, 
             d_loss_fake=d_loss_fake, 
@@ -79,7 +75,7 @@ class DCGAN(BaseGAN):
         for key, val in self.losses.items():
             tf.summary.scalar(key, val)
 
-        # optimize
+        # training ops / optimize step
         lr = self.config.learning_rate
         beta1 = self.config.beta1
         clip_gradients = self.config.clip_gradients
@@ -123,10 +119,62 @@ def create_optimizer(loss, var_list, lr=1e-3, beta1=0.5, clip_gradients=None):
         global_step=tf.train.get_or_create_global_step())
     return op
 
+def label_smoothing_losses(d_real_logits, d_fake_logits, label_smoothing=0.9):
+    """Returns DCGAN losses with label smoothing. 
+
+    We flip discriminator labels:
+    D(real) = 0, D(fake) = 1
+    We use label smoothing on D(fake) e.g. 0.9
+
+    Args:
+        d_real_logits: tensor of logit D(real_data)
+        d_fake_logits: tensor of logit D(fake_data)
+    Returns:
+        d_loss_real: loss tensor for D(real)
+        d_loss_fake: loss tensor for D(fake)
+        g_loss: loss tensor for G(z)
+    """
+    d_loss_real = tf.reduce_mean(
+        tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=d_real_logits, labels=tf.zeros_like(d_real_logits))
+    )
+    d_loss_fake = tf.reduce_mean(
+        tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=d_fake_logits, labels=label_smoothing * tf.ones_like(d_fake_logits))
+    )
+    g_loss = tf.reduce_mean(
+        tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=d_fake_logits, labels=tf.zeros_like(d_fake_logits))
+    )
+    return d_loss_real, d_loss_fake, g_loss
+
+def get_losses(d_real_logits, d_fake_logits):
+    """Returns DCGAN losses
+    Args:
+        d_real_logits: tensor of logit D(real_data)
+        d_fake_logits: tensor of logit D(fake_data)
+    Returns:
+        d_loss_real: loss tensor for D(real)
+        d_loss_fake: loss tensor for D(fake)
+        g_loss: loss tensor for G(z)
+    """
+    d_loss_real = tf.reduce_mean(
+        tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=d_real_logits, labels=tf.ones_like(d_real_logits))
+    )
+    d_loss_fake = tf.reduce_mean(
+        tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=d_fake_logits, labels=tf.zeros_like(d_fake_logits))
+    )
+    g_loss = tf.reduce_mean(
+        tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=d_fake_logits, labels=tf.ones_like(d_fake_logits))
+    )
+    return d_loss_real, d_loss_fake, g_loss
 
 class Generator:
     
-    def __init__(self, name="G", training=True, filters=1024, output_shape=(32, 32, 3)):
+    def __init__(self, name="G", filters=1024, output_shape=(32, 32, 3)):
         self.name = name
         self.filters = filters
         self.output_shape = output_shape
@@ -222,8 +270,8 @@ class Discriminator:
             d = conv_block(d, f2)
             d = conv_block(d, f3)
             d = dense_block(d, 1024)
-            output = tf.layers.dense(d, 1)
-            logit = tf.nn.sigmoid(output)
+            logit = tf.layers.dense(d, 1) 
+            output = tf.nn.sigmoid(logit) # prob(y|x)
 
         self.reuse = True
         self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name)
