@@ -45,6 +45,7 @@ class DCGAN(BaseGAN):
             optimizers: dict, {d_optim, g_optim}
         """
         real_data, z = inputs
+        tf.summary.image("real_data", batch_convert2int(real_data))
 
         # outputs
         fake_data = self.G(z)
@@ -189,7 +190,7 @@ class Generator:
         """
         # output shapes: h/16, h/8, h/4, h/2, h
         h, w, c = self.output_shape
-        h0, w0 = int(h/16), int(w/16)   # 4, 4
+        h0, w0 = int(h/16), int(w/16)   # 2, 2
         
         # filters: 1024, 512, 256, 128, c
         f0, f1, f2, f3, f4 = self.filters, int(self.filters/2), int(self.filters/4), int(self.filters/8), c
@@ -202,28 +203,29 @@ class Generator:
                 g = tf.layers.batch_normalization(g, training=training)
                 g = tf.nn.leaky_relu(g, alpha=0.2)
                 return g
-        
-        def deconv_block(x, filters, kernel_size=[4,4], strides=(2,2)):
+                
+        def deconv_block(x, filters, kernel_size=[4,4], strides=(2,2), padding='SAME'):
             with tf.variable_scope("deconv%d" % filters, reuse=self.reuse):
-                g = tf.layers.conv2d_transpose(x, filters, kernel_size, strides=strides, padding='SAME',
+                g = tf.layers.conv2d_transpose(x, filters, kernel_size, strides=strides, padding=padding,
                     kernel_initializer=tf.truncated_normal_initializer(stddev=0.02))
                 g = tf.layers.batch_normalization(g, training=training)
                 g = tf.nn.leaky_relu(g, alpha=0.2)
                 return g
 
-        def last_deconv_block(x, filters, kernel_size=[4,4], strides=(2,2)):
+        def last_deconv_block(x, filters, kernel_size=[4,4], strides=(2,2), padding='SAME'):
             with tf.variable_scope("deconv%d" % filters, reuse=self.reuse):
-                g = tf.layers.conv2d_transpose(x, filters, kernel_size, strides=strides, padding='SAME',
+                g = tf.layers.conv2d_transpose(x, filters, kernel_size, strides=strides, padding=padding,
                     kernel_initializer=tf.truncated_normal_initializer(stddev=0.02))
                 g = tf.nn.tanh(g)
                 return g
             
         # model
         with tf.variable_scope(self.name, reuse=self.reuse):
-            g = linear_projection(z)
-            g = deconv_block(g, f1) # 1024, 4x4
-            g = deconv_block(g, f2) # 512, 8x8
-            g = deconv_block(g, f3) # 256, 16x16
+            z = tf.reshape(z, [z.get_shape()[0], 1, 1, -1])
+            g = deconv_block(z, f0, strides=(1,1), padding='VALID') # 1024, 2x2
+            g = deconv_block(g, f1) # 512, 4x4
+            g = deconv_block(g, f2) # 256, 8x8
+            g = deconv_block(g, f3) # 128, 16x16
             output = last_deconv_block(g, f4) # 3, 32x32, tanh
 
         self.reuse = True
