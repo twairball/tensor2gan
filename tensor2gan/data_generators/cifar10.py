@@ -24,7 +24,10 @@ def read_batch(filepath):
         data = pickle.load(file, encoding='bytes')
 
     images = np.array(data[b'data'], dtype=np.float32)
-    images = np.reshape(images, (10000, 32, 32, 3))
+    # cifar 10 saved as channel first
+    images = np.reshape(images, [-1, 3, 32,32])
+    images = images.transpose([0, 2, 3, 1])
+
     labels = np.array(data[b'labels'], dtype=np.float32)
     return images, labels
     
@@ -41,7 +44,7 @@ def get_files(train=True, data_dir="./data"):
     return files
 
 def read_dataset(train=True, data_dir="./data"):
-    """Returns (images, files) tuple of whole dataset"""
+    """Returns [images, labels] of whole dataset"""
     files = get_files(train, data_dir)
     images = []
     labels = []
