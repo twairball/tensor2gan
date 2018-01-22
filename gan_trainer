@@ -102,7 +102,9 @@ def main(_):
 
         # input pipeline
         real_data = input_fn()
-        noise = tf.random_normal([hparams.batch_size, hparams.z_dim])
+        # noise = tf.random_normal([hparams.batch_size, hparams.z_dim])
+        noise = tf.random_uniform([hparams.batch_size, hparams.z_dim], 
+            minval=-1, maxval=1)
 
         # model
         gan = build_model(FLAGS.model, model_config)
