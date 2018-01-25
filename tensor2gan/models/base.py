@@ -7,7 +7,8 @@ import tensorflow as tf
 def convert2int(image):
     """ Transfrom from float tensor ([-1.,1.]) to int image ([0,255])
     """
-    return tf.image.convert_image_dtype((image+1.0) * 127.5, tf.uint8)
+    return tf.image.convert_image_dtype((image+1.0) * 0.5, tf.uint8)
+    # return tf.image.convert_image_dtype(image, dtype=tf.uint8)
 
 def batch_convert2int(images):
     return tf.map_fn(convert2int, images, dtype=tf.uint8)

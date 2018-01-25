@@ -89,12 +89,12 @@ def one_hot(x, num_classes):
 
 def get_feats(image):
     """Convert image to binary features. 
-    Returns image (uint8) and shape (int32) in binary
+    Returns image (float32) and shape (int32) in binary
     """
     shape = np.array(image.shape, dtype=np.int32)
-    img = image.astype(np.uint8)
+    img = image.astype(np.float32)
     # convert image to raw data bytes in the array.
-    feats = img.tobytes(), shape.tobytes() 
+    feats = img.tostring(), shape.tostring() 
     return feats
 
 def get_image(file):
@@ -129,12 +129,12 @@ def write_to_tf_records(record_filepath, images, labels, get_image_fn=None):
     for image, label in zip(images, labels):
         if get_image_fn:
             image = get_image_fn(image)
-        binary_image, shape = get_feats(image)
+        raw_image, shape = get_feats(image)
         
         example = tf.train.Example(features=tf.train.Features(feature={
                 'label': _int64_feature(label),
                 'shape': _bytes_feature(shape),
-                'image': _bytes_feature(binary_image)
+                'image': _bytes_feature(raw_image)
                 }))
         
         # Serialize to string and write on the file
@@ -157,8 +157,8 @@ def parse_record(example):
                             'shape': tf.FixedLenFeature([], tf.string),
                             'image': tf.FixedLenFeature([], tf.string),
                         }, name='features')
-    # image was saved as uint8, so we have to decode as uint8.
-    image = tf.decode_raw(tfrecord_features['image'], tf.uint8)
+    # image was saved as float32, so we have to decode as float32.
+    image = tf.decode_raw(tfrecord_features['image'], tf.float32)
     label = tfrecord_features['label']
 
     # shape is dynamic tensor -- can't reshape from this. 
