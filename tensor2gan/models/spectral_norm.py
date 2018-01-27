@@ -7,7 +7,7 @@ import tensorflow as tf
 def l2_norm(x, epsilon=1e-12):
     return x / (tf.reduce_sum(x ** 2) ** 0.5 + epsilon)
 
-def power_reduce(W, u, num_iters=1):
+def power_reduce(W, num_iters=1, training=True):
     W_shape = W.shape.as_list()
     W_reshaped = tf.reshape(W, [-1, W_shape[-1]])
 
@@ -16,7 +16,7 @@ def power_reduce(W, u, num_iters=1):
     u = tf.get_variable("u", 
         shape=[1, W_shape[-1]], 
         initializer=tf.truncated_normal_initializer(), 
-        trainable=False)
+        trainable=training)
     # u = tf.Variable(tf.truncated_normal([1, W_shape[-1]]), trainable=False)
     # u = tf.truncated_normal([1, W_shape[-1]])
     v = tf.zeros(shape=[1, W_reshaped.shape.as_list()[0]], dtype=tf.float32)
@@ -33,11 +33,11 @@ def power_reduce(W, u, num_iters=1):
     # return u, v
     return tf.while_loop(condition, body, (index, u, v))[1:]
 
-def spectral_norm(W, num_iters=1):
+def spectral_norm(W, num_iters=1, training=True):
     W_shape = W.shape.as_list()
     W_reshaped = tf.reshape(W, [-1, W_shape[-1]])
 
-    u, v = power_reduce(W, num_iters)
+    u, v = power_reduce(W, num_iters, training=training)
 
     # sigma
     sigma = tf.matmul(tf.matmul(v, W_reshaped), tf.transpose(u))[0, 0]

@@ -24,8 +24,11 @@ def read_batch(filepath):
         data = pickle.load(file, encoding='bytes')
 
     images = np.array(data[b'data'], dtype=np.float32)
-    images = np.reshape(images, (10000, 32, 32, 3))
-    labels = np.array(data[b'labels'], dtype=np.float32)
+    # cifar 10 saved as channel first
+    images = np.reshape(images, [-1, 3, 32, 32])
+    images = images.transpose([0, 2, 3, 1])
+
+    labels = np.array(data[b'labels'], dtype=np.int64)
     return images, labels
     
 def get_files(train=True, data_dir="./data"):
@@ -41,7 +44,7 @@ def get_files(train=True, data_dir="./data"):
     return files
 
 def read_dataset(train=True, data_dir="./data"):
-    """Returns (images, files) tuple of whole dataset"""
+    """Returns [images, labels] of whole dataset"""
     files = get_files(train, data_dir)
     images = []
     labels = []
@@ -101,6 +104,7 @@ class GenerateCifar10(DataGenerator):
             dataset = dataset.map(utils.parse_record)
             dataset = dataset.map(parse_features)
             dataset = dataset.shuffle(batch_size * 5).batch(batch_size).repeat()
+            # dataset = dataset.batch(batch_size).repeat()
             iterator = dataset.make_one_shot_iterator()
             return iterator.get_next()
         
