@@ -107,8 +107,8 @@ class DCGAN(BaseGAN):
         real_data, noise = inputs
         fake_data = self.G(noise, training=False)
         if add_summaries:
-            tf.summary.image("eval/real_data", batch_convert2int(real_data))
-            tf.summary.image("eval/fake_data", batch_convert2int(fake_data))
+            tf.summary.image("eval/real_data", batch_convert2int(real_data), collections="EVAL_SUMMARIES")
+            tf.summary.image("eval/fake_data", batch_convert2int(fake_data), collections="EVAL_SUMMARIES")
         return fake_data
 
 

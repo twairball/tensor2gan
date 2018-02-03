@@ -28,7 +28,7 @@ flags.DEFINE_boolean('log_device_placement', False,
 
 # eval steps
 flags.DEFINE_integer('eval_freq', 10000, 'interval of evalution')
-flags.DEFINE_integer('eval_size', 12, 'number of images to evaluate')
+flags.DEFINE_integer('eval_size', 3, 'number of images to evaluate')
 
 # model/save
 flags.DEFINE_integer("save_freq", 5000, "save model every N steps")
@@ -110,16 +110,24 @@ def main(_):
         gan = build_model(FLAGS.model, model_config)
         losses, outputs, optimizers = gan.model([real_data, noise])
 
-        # eval
-        fake_data = gan.eval([real_data, noise])
-
-        # summary/saver scaffold
+        # training summary/saver scaffold
         summary_op = tf.summary.merge_all()
         saver = tf.train.Saver(max_to_keep=FLAGS.keep_num_ckpts)
         scaffold = tf.train.Scaffold(
             summary_op=summary_op,
             saver=saver
         )
+
+        # eval summary/saver scaffold
+        fake_data = gan.eval([real_data, noise])
+        eval_summary_op = tf.summary.merge_all("EVAL_SUMMARIES")
+        eval_scaffold = tf.train.Scaffold(
+            summary_op=eval_summary_op,
+            saver=saver
+        )
+
+        # merged summaries
+        merged_summary_op = tf.summary.merge([summary_op, eval_summary_op])
 
         hooks = [
             tf.train.StopAtStepHook(last_step=FLAGS.train_steps),
@@ -131,7 +139,12 @@ def main(_):
             ),
             tf.train.SummarySaverHook(
                 save_steps=100,
-                scaffold=scaffold,
+                scaffold=scaffold, # scaffold provides summary_op
+                output_dir=FLAGS.model_dir
+            ),
+            tf.train.SummarySaverHook(
+                save_steps=FLAGS.eval_freq,
+                scaffold=eval_scaffold, # scaffold provides eval_summary_op
                 output_dir=FLAGS.model_dir
             )]
 
@@ -155,7 +168,7 @@ def main(_):
                     losses=losses, 
                     outputs=outputs,
                     optimizers=optimizers,
-                    summary=summary_op
+                    summary=merged_summary_op
                 ))
 
 
