@@ -126,9 +126,6 @@ def main(_):
             saver=saver
         )
 
-        # merged summaries
-        merged_summary_op = tf.summary.merge(collections=[tf.GraphKeys.SUMMARIES, "EVAL_SUMMARIES"])
-
         hooks = [
             tf.train.StopAtStepHook(last_step=FLAGS.train_steps),
             tf.train.LoggingTensorHook(losses, every_n_iter=100),
@@ -168,7 +165,7 @@ def main(_):
                     losses=losses, 
                     outputs=outputs,
                     optimizers=optimizers,
-                    summary=merged_summary_op
+                    summary=[summary_op, eval_summary_op]
                 ))
 
 
