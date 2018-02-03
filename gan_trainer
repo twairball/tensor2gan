@@ -127,7 +127,7 @@ def main(_):
         )
 
         # merged summaries
-        merged_summary_op = tf.summary.merge([summary_op, eval_summary_op])
+        merged_summary_op = tf.summary.merge(collections=[tf.GraphKeys.SUMMARIES, "EVAL_SUMMARIES"])
 
         hooks = [
             tf.train.StopAtStepHook(last_step=FLAGS.train_steps),
