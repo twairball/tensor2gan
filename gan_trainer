@@ -111,7 +111,7 @@ def main(_):
         losses, outputs, optimizers = gan.model([real_data, noise])
 
         # eval
-        fake_data = gan.eval(noise)
+        fake_data = gan.eval([real_data, noise])
 
         # summary/saver scaffold
         summary_op = tf.summary.merge_all()
