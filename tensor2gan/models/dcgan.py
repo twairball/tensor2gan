@@ -245,7 +245,7 @@ class Discriminator:
     def __call__(self, inputs, training=True):
         """
         Args:
-            inputs: image tensor [batch, w, h, c]
+            inputs: image tensor [batch, h, w, c]
         Returns:
             output: Tensor
             logit: Tensor, sigmoid logit

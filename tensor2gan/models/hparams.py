@@ -36,3 +36,11 @@ def sn_dcgan_base():
     hparams = dcgan_base()
     hparams.beta2=0.999
     return hparams
+
+def wgan_gp():
+    hparams = dcgan_base()
+    hparams.learning_rate = 1e-4
+    hparams.beta1 = 0.5
+    hparams.beta2 = 0.9
+    hparams.penalty = 10.0
+    return hparams

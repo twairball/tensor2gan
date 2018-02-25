@@ -5,7 +5,7 @@ from __future__ import print_function
 from tensor2gan.utils.registry import get_data_generators, get_models
 
 from tensor2gan.data_generators import cifar10, pokemon, mnist
-from tensor2gan.models import dcgan, sn_dcgan, wgan, dummy
+from tensor2gan.models import dcgan, sn_dcgan, wgan, dummy, wgan_gp
 
 def build_model(name, config=None):
     _MODELS = get_models()
