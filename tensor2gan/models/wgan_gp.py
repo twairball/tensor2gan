@@ -22,6 +22,7 @@ class WGAN_GP(DCGAN):
         gen_filters: int, Generator top layer filters
         dis_filters: int, Discriminator top layer filters
         learning_rate: float, Adam optimizer learning rate
+        penalty: float, gradient penalty factor. default=10.0
     """
 
     def model(self, inputs):
@@ -80,14 +81,17 @@ class WGAN_GP(DCGAN):
 
         # optimize
         lr = self.config.learning_rate
+        beta1 = self.config.beta1
+        beta2 = self.config.beta2
+
         with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
-            d_optim = tf.train.AdamOptimizer(learning_rate=lr, beta1=0.5, beta2=0.9)\
+            d_optim = tf.train.AdamOptimizer(learning_rate=lr, beta1=beta1, beta2=beta2)\
                 .minimize(
                     d_loss, 
                     global_step=tf.train.get_or_create_global_step(),
                     var_list=self.D.variables)
 
-            g_optim = tf.train.AdamOptimizer(learning_rate=lr, beta1=0.5, beta2=0.9)\
+            g_optim = tf.train.AdamOptimizer(learning_rate=lr, beta1=beta1, beta2=beta2)\
                 .minimize(
                     g_loss, 
                     global_step=tf.train.get_or_create_global_step(),
